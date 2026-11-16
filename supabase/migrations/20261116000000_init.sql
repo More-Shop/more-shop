@@ -51,6 +51,11 @@ create table public.stores (
   line_oa_basic_id     text,                         -- เช่น @moreshop
   line_liff_id         text,
   line_login_channel_id text,
+  -- Photos (menu, logo, expense receipts) are saved in this Google Drive
+  -- folder through the Apps Script in apps-script/DriveUpload.gs, so they
+  -- don't use Supabase storage. drive_upload_url overrides the default script.
+  drive_folder_id      text check (drive_folder_id is null or drive_folder_id ~ '^[A-Za-z0-9_-]{10,}$'),
+  drive_upload_url     text check (drive_upload_url is null or drive_upload_url ~ '^https://script\.google\.com/'),
   created_by           uuid references auth.users (id) on delete set null,
   created_at           timestamptz not null default now(),
   updated_at           timestamptz not null default now()
@@ -409,7 +414,7 @@ begin
   insert into public.stores (
     slug, name, legal_name, tax_id, branch_code, address, phone, email, logo_url, theme_color,
     vat_registered, vat_rate, prices_include_vat, service_charge_rate, promptpay_id,
-    paper_width, receipt_header, receipt_footer, open_time, close_time, created_by)
+    paper_width, receipt_header, receipt_footer, open_time, close_time, drive_folder_id, drive_upload_url, created_by)
   values (
     lower(trim(p_store->>'slug')), trim(p_store->>'name'), nullif(p_store->>'legal_name', ''),
     nullif(p_store->>'tax_id', ''), coalesce(nullif(p_store->>'branch_code', ''), '00000'),
@@ -420,7 +425,8 @@ begin
     coalesce((p_store->>'service_charge_rate')::numeric, 0), nullif(p_store->>'promptpay_id', ''),
     coalesce((p_store->>'paper_width')::int, 80), nullif(p_store->>'receipt_header', ''),
     coalesce(nullif(p_store->>'receipt_footer', ''), 'ขอบคุณที่ใช้บริการ'),
-    nullif(p_store->>'open_time', '')::time, nullif(p_store->>'close_time', '')::time, auth.uid())
+    nullif(p_store->>'open_time', '')::time, nullif(p_store->>'close_time', '')::time,
+    nullif(p_store->>'drive_folder_id', ''), nullif(p_store->>'drive_upload_url', ''), auth.uid())
   returning * into s;
 
   insert into public.store_members (store_id, user_id, role) values (s.id, auth.uid(), 'owner');
@@ -974,7 +980,8 @@ begin
 end $$;
 
 -- =====================================================================
--- Storage: one public bucket for menu photos and logos.
+-- Storage: fallback bucket, used only by stores that have not set a
+-- Google Drive folder yet.
 -- Path convention: <store_id>/<file>
 -- =====================================================================
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

@@ -1,5 +1,8 @@
 # ติดตั้งและ Deploy
 
+> **More Shop ตั้งค่าแล้ว:** Supabase โปรเจกต์ `more-shop` (Singapore) สร้าง ติดตั้งตาราง และ deploy edge functions เรียบร้อย
+> ค่าเชื่อมต่ออยู่ใน `.env.production` — ขั้นตอนด้านล่างใช้เมื่อต้องการติดตั้งใหม่ในโปรเจกต์อื่น
+
 ## 1. สร้างโปรเจกต์ Supabase
 
 1. สมัคร/ล็อกอิน <https://supabase.com> → **New project** (Region แนะนำ: Singapore)
@@ -48,11 +51,7 @@ npm run dev
 
 1. Push โค้ดขึ้น GitHub
 2. *Settings → Pages → Source:* **GitHub Actions**
-3. *Settings → Secrets and variables → Actions → Variables* เพิ่ม
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY` (เป็นคีย์สาธารณะ ปลอดภัยด้วย RLS)
-   - `VITE_APP_NAME` (ไม่บังคับ ค่าเริ่มต้น `More Shop`)
-   - `VITE_PUBLIC_URL` (ไม่บังคับ เช่น `https://<user>.github.io/more-shop/` หรือโดเมนของร้าน)
+3. แก้ค่าใน `.env.production` ให้ตรงกับโปรเจกต์ Supabase ของคุณ (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` เป็นค่าสาธารณะ ปลอดภัยด้วย RLS, `VITE_PUBLIC_URL`)
 4. Push เข้า `main` — workflow **Deploy to GitHub Pages** จะ build และ deploy ให้
 
 ใช้ Vercel / Netlify / Cloudflare Pages ก็ได้: Build command `npm run build`, Output `dist`, ใส่ env เดียวกัน

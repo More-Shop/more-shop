@@ -148,7 +148,7 @@ function EntryModal({ draft, accounts, onClose, onSaved }: { draft: Partial<Ledg
   async function onFile(f?: File) {
     if (!f) return;
     setUploading(true);
-    try { const url = await uploadStoreFile(store.id, f, 'receipts'); setD((x) => ({ ...x, attachment_url: url })); }
+    try { const url = await uploadStoreFile(store, f, 'receipts'); setD((x) => ({ ...x, attachment_url: url })); }
     catch (e) { setError((e as Error).message); } finally { setUploading(false); }
   }
 

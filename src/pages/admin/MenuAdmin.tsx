@@ -85,7 +85,7 @@ function ItemModal({ draft, cats, onClose, onSaved }: { draft: Draft; cats: Cate
   async function onFile(f?: File) {
     if (!f) return;
     setUploading(true); setError(null);
-    try { setD((x) => ({ ...x, image_url: null })); const url = await uploadStoreFile(store.id, f); setD((x) => ({ ...x, image_url: url })); }
+    try { setD((x) => ({ ...x, image_url: null })); const url = await uploadStoreFile(store, f, 'menu'); setD((x) => ({ ...x, image_url: url })); }
     catch (e) { setError((e as Error).message); } finally { setUploading(false); }
   }
 

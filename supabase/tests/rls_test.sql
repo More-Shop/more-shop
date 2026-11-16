@@ -15,7 +15,7 @@ end $$;
 
 -- 1. Owner A and owner B each create their own store.
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
-select id as store_a from public.create_store('{"slug":"more-shop","name":"More Shop","tax_id":"0105556000001","vat_registered":true,"service_charge_rate":10,"open_time":"00:00","close_time":"23:59"}') \gset
+select id as store_a from public.create_store('{"slug":"more-shop","name":"More Shop","tax_id":"0105556000001","vat_registered":true,"service_charge_rate":10,"open_time":"00:00","close_time":"23:59","drive_folder_id":"1AbCdEfGhIjKlMnOpQrStUv"}') \gset
 reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
 select id as store_b from public.create_store('{"slug":"cafe-b","name":"Cafe B"}') \gset

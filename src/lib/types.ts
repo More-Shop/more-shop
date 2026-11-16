@@ -35,6 +35,8 @@ export interface Store {
   line_oa_basic_id: string | null;
   line_liff_id: string | null;
   line_login_channel_id: string | null;
+  drive_folder_id: string | null;
+  drive_upload_url: string | null;
 }
 
 export interface Category { id: string; store_id: string; name: string; sort: number; active: boolean }

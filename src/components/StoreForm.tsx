@@ -2,7 +2,8 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { ImagePlus } from 'lucide-react';
 import { Field, ErrorBox, Spinner, Toggle } from './ui';
 import { isValidThaiTaxId } from '@/lib/taxid';
-import { uploadStoreFile } from '@/lib/upload';
+import { parseDriveFolderId, uploadStoreFile } from '@/lib/upload';
+import type { Store } from '@/lib/types';
 
 export interface StoreFormValues {
   name: string;
@@ -28,6 +29,8 @@ export interface StoreFormValues {
   booking_enabled: boolean;
   qr_order_enabled: boolean;
   booking_slot_minutes: number;
+  drive_folder_id: string;
+  drive_upload_url: string;
 }
 
 export const emptyStoreForm: StoreFormValues = {
@@ -35,6 +38,7 @@ export const emptyStoreForm: StoreFormValues = {
   logo_url: '', theme_color: '#ea580c', vat_registered: false, vat_rate: 7, prices_include_vat: true,
   service_charge_rate: 0, promptpay_id: '', paper_width: 80, receipt_header: '', receipt_footer: 'ขอบคุณที่ใช้บริการ',
   open_time: '10:00', close_time: '22:00', booking_enabled: true, qr_order_enabled: true, booking_slot_minutes: 120,
+  drive_folder_id: '', drive_upload_url: '',
 };
 
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
@@ -49,9 +53,13 @@ function Section({ title, desc, children }: { title: string; desc?: string; chil
   );
 }
 
-export default function StoreForm({ initial, onSubmit, submitLabel, storeId }: {
-  initial: StoreFormValues; onSubmit: (v: StoreFormValues) => Promise<void>; submitLabel: string; storeId?: string;
+export default function StoreForm({ initial, onSubmit, submitLabel, savedStore }: {
+  initial: StoreFormValues; onSubmit: (v: StoreFormValues) => Promise<void>; submitLabel: string;
+  /** The store as saved in the database (enables logo upload). */
+  savedStore?: Pick<Store, 'id' | 'drive_folder_id' | 'drive_upload_url'>;
 }) {
+  const storeId = savedStore?.id;
+  const [driveInput, setDriveInput] = useState(initial.drive_folder_id ? `https://drive.google.com/drive/folders/${initial.drive_folder_id}` : '');
   const [v, setV] = useState<StoreFormValues>(initial);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -67,6 +75,8 @@ export default function StoreForm({ initial, onSubmit, submitLabel, storeId }: {
     if (!/^[a-z0-9][a-z0-9-]{1,39}$/.test(v.slug)) { setError('รหัสร้าน (URL) ใช้ a-z, 0-9 และ - อย่างน้อย 2 ตัวอักษร'); return; }
     if (v.tax_id && !/^\d{13}$/.test(v.tax_id)) { setError('เลขประจำตัวผู้เสียภาษีต้องเป็นตัวเลข 13 หลัก'); return; }
     if (v.vat_registered && !v.tax_id) { setError('ร้านที่จด VAT ต้องกรอกเลขประจำตัวผู้เสียภาษี'); return; }
+    if (driveInput.trim() && !v.drive_folder_id) { setError('ลิงก์โฟลเดอร์ Google Drive ไม่ถูกต้อง — คัดลอกลิงก์จากแถบที่อยู่ตอนเปิดโฟลเดอร์'); return; }
+    if (v.drive_upload_url && !v.drive_upload_url.startsWith('https://script.google.com/')) { setError('ลิงก์ Apps Script ต้องขึ้นต้นด้วย https://script.google.com/'); return; }
     setBusy(true);
     try { await onSubmit(v); }
     catch (err) {
@@ -76,9 +86,9 @@ export default function StoreForm({ initial, onSubmit, submitLabel, storeId }: {
   }
 
   async function onLogo(file: File | undefined) {
-    if (!file || !storeId) return;
+    if (!file || !savedStore) return;
     setUploading(true);
-    try { set('logo_url', await uploadStoreFile(storeId, file, 'logo')); }
+    try { set('logo_url', await uploadStoreFile(savedStore, file, 'logo')); }
     catch (e) { setError((e as Error).message); }
     finally { setUploading(false); }
   }
@@ -116,6 +126,17 @@ export default function StoreForm({ initial, onSubmit, submitLabel, storeId }: {
             <input type="color" className="h-10 w-14 cursor-pointer rounded-lg border border-slate-200" value={v.theme_color} onChange={(e) => set('theme_color', e.target.value)} />
             <input className="input" value={v.theme_color} onChange={(e) => set('theme_color', e.target.value)} pattern="#[0-9a-fA-F]{6}" />
           </div>
+        </Field>
+      </Section>
+
+      <Section title="ที่เก็บรูปภาพ (Google Drive)" desc="รูปเมนู โลโก้ และรูปใบเสร็จรายจ่ายของร้านนี้จะเก็บในโฟลเดอร์ Google Drive นี้ ไม่กินพื้นที่ฐานข้อมูล (ดู docs/GOOGLE_DRIVE.md)">
+        <Field label="ลิงก์โฟลเดอร์ Google Drive ของร้าน" className="sm:col-span-2"
+          hint={driveInput && v.drive_folder_id ? `✓ รหัสโฟลเดอร์: ${v.drive_folder_id} — ระบบจะสร้างโฟลเดอร์ย่อย เมนู / โลโก้ / ใบเสร็จรายจ่าย ให้เอง` : 'เปิดโฟลเดอร์ใน Google Drive แล้วคัดลอกลิงก์จากแถบที่อยู่มาวาง เช่น https://drive.google.com/drive/folders/…'}>
+          <input className="input" value={driveInput} placeholder="https://drive.google.com/drive/folders/…"
+            onChange={(e) => { setDriveInput(e.target.value); set('drive_folder_id', parseDriveFolderId(e.target.value)); }} />
+        </Field>
+        <Field label="ลิงก์ Apps Script (Web app)" className="sm:col-span-2" hint="ได้จากการ Deploy ไฟล์ apps-script/DriveUpload.gs — เว้นว่างได้ถ้าผู้ดูแลระบบตั้งค่าไว้ให้ทุกร้านแล้ว">
+          <input className="input" value={v.drive_upload_url} placeholder="https://script.google.com/macros/s/…/exec" onChange={(e) => set('drive_upload_url', e.target.value.trim())} />
         </Field>
       </Section>
 

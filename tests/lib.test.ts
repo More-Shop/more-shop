@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { bahtText, fmt2 } from '../src/lib/format';
 import { crc16, promptPayPayload } from '../src/lib/promptpay';
 import { isValidThaiTaxId } from '../src/lib/taxid';
+import { parseDriveFolderId } from '../src/lib/upload';
 import { computeTotals } from '../src/lib/totals';
 import { cashBook, generalJournal, incomeStatement, salesVatReport } from '../src/lib/reports';
 import type { Account, LedgerEntry, Store } from '../src/lib/types';
@@ -111,5 +112,15 @@ describe('reports', () => {
     const r = generalJournal(store, entries, accounts, '2026-11-01', '2026-11-30');
     expect(r.footer![5]).toBe(r.footer![6]);
     expect(fmt2(r.footer![5] as number)).toBe('1,277.00');
+  });
+});
+
+describe('parseDriveFolderId', () => {
+  it('accepts folder links, ?id= links and bare ids', () => {
+    expect(parseDriveFolderId('https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp_q-R?usp=sharing')).toBe('1AbCdEfGhIjKlMnOp_q-R');
+    expect(parseDriveFolderId('https://drive.google.com/drive/u/1/folders/1AbCdEfGhIjKlMnOp')).toBe('1AbCdEfGhIjKlMnOp');
+    expect(parseDriveFolderId('https://drive.google.com/open?id=1AbCdEfGhIjKlMnOp')).toBe('1AbCdEfGhIjKlMnOp');
+    expect(parseDriveFolderId('1AbCdEfGhIjKlMnOp')).toBe('1AbCdEfGhIjKlMnOp');
+    expect(parseDriveFolderId('hello world')).toBe('');
   });
 });

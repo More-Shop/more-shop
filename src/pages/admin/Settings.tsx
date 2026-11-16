@@ -17,7 +17,7 @@ function toForm(s: Store): StoreFormValues {
     service_charge_rate: Number(s.service_charge_rate), promptpay_id: s.promptpay_id ?? '', paper_width: s.paper_width,
     receipt_header: s.receipt_header ?? '', receipt_footer: s.receipt_footer ?? '', open_time: s.open_time?.slice(0, 5) ?? '',
     close_time: s.close_time?.slice(0, 5) ?? '', booking_enabled: s.booking_enabled, qr_order_enabled: s.qr_order_enabled,
-    booking_slot_minutes: s.booking_slot_minutes,
+    booking_slot_minutes: s.booking_slot_minutes, drive_folder_id: s.drive_folder_id ?? '', drive_upload_url: s.drive_upload_url ?? '',
   };
 }
 
@@ -43,12 +43,13 @@ export default function Settings() {
     <div className="mx-auto max-w-4xl">
       <PageHeader title="ตั้งค่าร้าน" subtitle={`ลิงก์เมนูลูกค้า: ${publicLink(`s/${store.slug}`)}`}
         actions={<button className="btn-secondary" onClick={testPrint}><Printer className="h-4 w-4" /> ทดสอบพิมพ์ใบเสร็จ</button>} />
-      <StoreForm key={store.id} storeId={store.id} initial={toForm(store)} submitLabel="บันทึกการตั้งค่า"
+      <StoreForm key={store.id} savedStore={store} initial={toForm(store)} submitLabel="บันทึกการตั้งค่า"
         onSubmit={async (v) => {
           must(await supabase.from('stores').update({
             ...v, tax_id: v.tax_id || null, legal_name: v.legal_name || null, address: v.address || null, phone: v.phone || null,
             email: v.email || null, logo_url: v.logo_url || null, promptpay_id: v.promptpay_id || null,
             receipt_header: v.receipt_header || null, open_time: v.open_time || null, close_time: v.close_time || null,
+            drive_folder_id: v.drive_folder_id || null, drive_upload_url: v.drive_upload_url || null,
           }).eq('id', store.id).select('id'));
           await reload();
           toast.ok('บันทึกแล้ว');
