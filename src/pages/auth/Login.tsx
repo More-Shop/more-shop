@@ -1,12 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { Store } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth';
 import { APP_NAME } from '@/lib/config';
 import { ErrorBox, Field, Spinner } from '@/components/ui';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
 export default function Login() {
+  const { notice } = useAuth();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,6 +56,7 @@ export default function Login() {
         </div>
         <form onSubmit={submit} className="card space-y-4 p-6">
           <h2 className="text-lg font-bold">{title}</h2>
+          {notice && !error && !info && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{notice}</div>}
           <ErrorBox error={error} />
           {info && <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{info}</div>}
           <Field label="อีเมล">
