@@ -1,0 +1,26 @@
+# Supabase CLI config (used by `supabase start` / `supabase functions deploy`).
+project_id = "more-shop"
+
+[api]
+schemas = ["public"]
+
+[auth]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+
+[auth.email]
+enable_confirmations = true
+
+[storage]
+file_size_limit = "5MiB"
+
+# LINE calls the webhook without a Supabase JWT; the other two functions
+# verify the caller themselves (LINE ID token / user session).
+[functions.line-webhook]
+verify_jwt = false
+
+[functions.line-liff]
+verify_jwt = false
+
+[functions.line-push]
+verify_jwt = false
