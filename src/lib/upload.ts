@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { DRIVE_UPLOAD_URL } from './config';
 import type { Store } from './types';
+import { toast } from '@/components/ui';
 
 export type UploadKind = 'menu' | 'logo' | 'receipts';
 type UploadStore = Pick<Store, 'id' | 'drive_folder_id' | 'drive_upload_url'>;
@@ -61,9 +62,14 @@ export async function uploadStoreFile(store: UploadStore, file: File, kind: Uplo
   const mimeType = resized ? 'image/jpeg' : file.type;
   const name = resized ? file.name.replace(/\.[^.]+$/, '') + '.jpg' : file.name;
 
-  if (store.drive_folder_id) {
-    const url = driveUploadUrl(store);
-    if (!url) throw new Error('ยังไม่ได้ใส่ลิงก์ Apps Script สำหรับ Google Drive ในหน้าตั้งค่าร้าน');
+  const scriptUrl = driveUploadUrl(store);
+  if (store.drive_folder_id && !scriptUrl) {
+    // Folder chosen but the Apps Script link is still missing: keep working,
+    // store the photo in the database storage for now and say so.
+    toast.err('บันทึกรูปไว้ในระบบชั่วคราว — ใส่ “ลิงก์ Apps Script” ในหน้าตั้งค่าร้าน เพื่อให้รูปถัดไปไปเก็บใน Google Drive');
+  }
+  if (store.drive_folder_id && scriptUrl) {
+    const url = scriptUrl;
     const token = (await supabase.auth.getSession()).data.session?.access_token;
     // text/plain avoids a CORS pre-flight, which Apps Script web apps don't answer.
     const res = await fetch(url, {
