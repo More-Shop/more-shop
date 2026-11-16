@@ -50,8 +50,17 @@ function doPost(e) {
     var stamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss');
     try { file = folder.createFile(Utilities.newBlob(bytes, req.mimeType, stamp + '_' + name)); }
     catch (err) { throw new Error(needEditor_('บันทึกไฟล์')); }
-    try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
-    catch (err) { throw new Error('บันทึกไฟล์แล้ว แต่ตั้งแชร์ "ทุกคนที่มีลิงก์" ไม่ได้ (บัญชีองค์กรอาจปิดการแชร์ภายนอก) — ' + err.message); }
+    // The photo must be viewable by link so customers can see it. Skip when
+    // it already is (e.g. inherited from a folder shared "anyone with link":
+    // Drive refuses to lower an inherited permission and says "Access denied").
+    if (!viewableByLink_(file)) {
+      try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
+      catch (err) {
+        if (!viewableByLink_(file)) {
+          throw new Error('บันทึกไฟล์แล้ว แต่ตั้งแชร์ "ทุกคนที่มีลิงก์ดูได้" ไม่ได้ — ตั้งโฟลเดอร์ของร้านเป็น "จำกัด" แล้วลองใหม่ (' + err.message + ')');
+        }
+      }
+    }
 
     var id = file.getId();
     return json_({
@@ -63,7 +72,7 @@ function doPost(e) {
   } catch (err) {
     var msg = String((err && err.message) || err);
     if (/permission|สิทธิ์|อนุญาต|authorization/i.test(msg) && /DriveApp|drive/i.test(msg)) {
-      msg = 'สคริปต์ยังไม่ได้รับสิทธิ์ Google Drive — เปิด Apps Script กด Run ฟังก์ชัน authorize แล้วติ๊กอนุญาตทุกข้อ (ดู docs/GOOGLE_DRIVE.md)';
+      msg = 'สคริปต์ยังไม่ได้รับสิทธิ์ Google Drive — เปิด Apps Script กด Run ฟังก์ชัน authorize แล้วติ๊กอนุญาตทุกข้อ (' + msg + ')';
     }
     return json_({ ok: false, error: msg });
   }
@@ -80,6 +89,13 @@ function storeForUser_(token, storeId) {
   var rows = JSON.parse(res.getContentText());
   if (!rows.length) throw new Error('คุณไม่มีสิทธิ์ในร้านนี้');
   return rows[0];
+}
+
+function viewableByLink_(file) {
+  try {
+    var a = file.getSharingAccess();
+    return a === DriveApp.Access.ANYONE_WITH_LINK || a === DriveApp.Access.ANYONE;
+  } catch (e) { return false; }
 }
 
 /** Explains which Google account needs Editor access to the store folder. */
