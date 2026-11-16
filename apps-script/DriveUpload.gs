@@ -42,12 +42,16 @@ function doPost(e) {
     var root;
     try { root = DriveApp.getFolderById(store.drive_folder_id); }
     catch (err) { throw new Error('เปิดโฟลเดอร์ Google Drive ของร้านไม่ได้ — ตรวจลิงก์ และแชร์โฟลเดอร์ให้บัญชีที่ติดตั้งสคริปต์เป็น "ผู้แก้ไข"'); }
-    var folder = subfolder_(root, SUBFOLDERS[req.kind]);
+    var folder, file;
+    try { folder = subfolder_(root, SUBFOLDERS[req.kind]); }
+    catch (err) { throw new Error(needEditor_('สร้างโฟลเดอร์ย่อย "' + SUBFOLDERS[req.kind] + '"')); }
 
     var name = String(req.fileName || 'file').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 120);
     var stamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss');
-    var file = folder.createFile(Utilities.newBlob(bytes, req.mimeType, stamp + '_' + name));
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    try { file = folder.createFile(Utilities.newBlob(bytes, req.mimeType, stamp + '_' + name)); }
+    catch (err) { throw new Error(needEditor_('บันทึกไฟล์')); }
+    try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
+    catch (err) { throw new Error('บันทึกไฟล์แล้ว แต่ตั้งแชร์ "ทุกคนที่มีลิงก์" ไม่ได้ (บัญชีองค์กรอาจปิดการแชร์ภายนอก) — ' + err.message); }
 
     var id = file.getId();
     return json_({
@@ -76,6 +80,14 @@ function storeForUser_(token, storeId) {
   var rows = JSON.parse(res.getContentText());
   if (!rows.length) throw new Error('คุณไม่มีสิทธิ์ในร้านนี้');
   return rows[0];
+}
+
+/** Explains which Google account needs Editor access to the store folder. */
+function needEditor_(step) {
+  var who = '';
+  try { who = DriveApp.getRootFolder().getOwner().getEmail(); } catch (e) { /* ignore */ }  // Drive scope only
+  return 'Google Drive ไม่ให้' + step + 'ในโฟลเดอร์ของร้าน — แชร์โฟลเดอร์ให้บัญชี ' + (who || 'ที่ติดตั้งสคริปต์') +
+    ' เป็น "ผู้แก้ไข" (หรือสร้างโฟลเดอร์ในบัญชีนั้น แล้วใส่ลิงก์ใหม่ในตั้งค่าร้าน)';
 }
 
 function subfolder_(root, name) {
