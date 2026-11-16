@@ -57,7 +57,11 @@ function doPost(e) {
       viewUrl: 'https://drive.google.com/file/d/' + id + '/view',
     });
   } catch (err) {
-    return json_({ ok: false, error: String((err && err.message) || err) });
+    var msg = String((err && err.message) || err);
+    if (/permission|สิทธิ์|อนุญาต|authorization/i.test(msg) && /DriveApp|drive/i.test(msg)) {
+      msg = 'สคริปต์ยังไม่ได้รับสิทธิ์ Google Drive — เปิด Apps Script กด Run ฟังก์ชัน authorize แล้วติ๊กอนุญาตทุกข้อ (ดู docs/GOOGLE_DRIVE.md)';
+    }
+    return json_({ ok: false, error: msg });
   }
 }
 
@@ -83,9 +87,17 @@ function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
-/** Run once from the editor to grant Drive + internet permissions. */
+/**
+ * Run once from the editor (เลือก authorize → Run). Google shows a consent
+ * screen: tick EVERY box (Google Drive + external service), or "Select all".
+ * If a box was left unticked before, this asks again.
+ */
 function authorize() {
-  DriveApp.getRootFolder();
-  UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/', { headers: { apikey: SUPABASE_ANON_KEY }, muteHttpExceptions: true });
-  Logger.log('พร้อมใช้งาน');
+  ScriptApp.requireAllScopes(ScriptApp.AuthMode.FULL);
+  var root = DriveApp.getRootFolder();                       // Drive permission
+  var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/public_store', {  // internet permission
+    method: 'post', contentType: 'application/json', payload: JSON.stringify({ p_slug: '-' }),
+    headers: { apikey: SUPABASE_ANON_KEY }, muteHttpExceptions: true });
+  Logger.log('Google Drive: OK (' + root.getName() + ') · Supabase: HTTP ' + res.getResponseCode());
+  Logger.log('พร้อมใช้งาน — ต่อไป Deploy → Manage deployments → ✏️ → Version: New version → Deploy');
 }
