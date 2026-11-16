@@ -44,7 +44,7 @@ export default function Settings() {
       <PageHeader title="ตั้งค่าร้าน" subtitle={`ลิงก์เมนูลูกค้า: ${publicLink(`s/${store.slug}`)}`}
         actions={<button className="btn-secondary" onClick={testPrint}><Printer className="h-4 w-4" /> ทดสอบพิมพ์ใบเสร็จ</button>} />
       <StoreForm key={store.id} savedStore={store} initial={toForm(store)} submitLabel="บันทึกการตั้งค่า"
-        onSubmit={async (v) => {
+        onSubmit={async (v) => {  // logo is uploaded immediately for an existing store
           must(await supabase.from('stores').update({
             ...v, tax_id: v.tax_id || null, legal_name: v.legal_name || null, address: v.address || null, phone: v.phone || null,
             email: v.email || null, logo_url: v.logo_url || null, promptpay_id: v.promptpay_id || null,

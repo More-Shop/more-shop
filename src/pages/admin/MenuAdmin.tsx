@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ImageOff, ImagePlus, Pencil, Plus, Trash2 } from 'l
 import { supabase, must } from '@/lib/supabase';
 import { useCurrentStore } from '@/lib/store';
 import { fmtPrice } from '@/lib/format';
-import { uploadStoreFile } from '@/lib/upload';
+import { displayableImageUrl, uploadStoreFile } from '@/lib/upload';
 import type { Category, MenuItem } from '@/lib/types';
 import { EmptyState, ErrorBox, Field, Modal, PageHeader, PageLoading, Spinner, Toggle, toast, useLoad } from '@/components/ui';
 
@@ -94,7 +94,7 @@ function ItemModal({ draft, cats, onClose, onSaved }: { draft: Draft; cats: Cate
     setBusy(true); setError(null);
     const row = {
       store_id: store.id, name: d.name.trim(), price: Number(d.price) || 0, description: d.description || null,
-      category_id: d.category_id || null, image_url: d.image_url || null, available: d.available ?? true, sort: Number(d.sort) || 0,
+      category_id: d.category_id || null, image_url: d.image_url ? displayableImageUrl(d.image_url) : null, available: d.available ?? true, sort: Number(d.sort) || 0,
     };
     try {
       if (d.id) must(await supabase.from('menu_items').update(row).eq('id', d.id).select('id'));
@@ -120,12 +120,12 @@ function ItemModal({ draft, cats, onClose, onSaved }: { draft: Draft; cats: Cate
       <div className="space-y-4">
         <ErrorBox error={error} />
         <label className="relative flex aspect-[4/3] cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400 hover:border-brand-500">
-          {d.image_url ? <img src={d.image_url} alt="" className="h-full w-full object-cover" />
+          {d.image_url ? <img src={displayableImageUrl(d.image_url)} alt="" className="h-full w-full object-cover" />
             : <div className="flex flex-col items-center gap-1">{uploading ? <Spinner /> : <ImagePlus className="h-8 w-8" />}<span className="text-sm">แตะเพื่อถ่าย/เลือกรูปเมนู</span></div>}
           <input type="file" accept="image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
           {d.image_url && <span className="absolute bottom-2 right-2 rounded-lg bg-white/90 px-2 py-1 text-xs font-semibold text-slate-700">เปลี่ยนรูป</span>}
         </label>
-        <Field label="หรือวางลิงก์รูป"><input className="input" value={d.image_url ?? ''} onChange={(e) => setD({ ...d, image_url: e.target.value })} placeholder="https://…" /></Field>
+        <Field label="หรือวางลิงก์รูป" hint="ลิงก์แชร์ของ Google Drive ใช้ได้ (ตั้งแชร์เป็น “ทุกคนที่มีลิงก์”)"><input className="input" value={d.image_url ?? ''} onChange={(e) => setD({ ...d, image_url: e.target.value })} placeholder="https://…" /></Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="ชื่อเมนู *" className="sm:col-span-2"><input className="input" value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} autoFocus /></Field>
           <Field label="ราคา (บาท) *"><input className="input text-lg font-bold" type="number" min={0} step="0.01" value={d.price} onChange={(e) => setD({ ...d, price: Number(e.target.value) })} /></Field>

@@ -35,6 +35,18 @@ export function parseDriveFolderId(input: string): string {
   return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';
 }
 
+/**
+ * A Google Drive "share" link (drive.google.com/file/d/<id>/view, open?id=, uc?id=)
+ * opens a viewer page, not an image. Convert it to the thumbnail URL so it can
+ * be shown as a logo / menu photo. Other URLs are returned unchanged.
+ */
+export function displayableImageUrl(input: string): string {
+  const s = input.trim();
+  if (!/^https:\/\/(drive|docs)\.google\.com\//.test(s)) return s;
+  const m = s.match(/\/file\/d\/([A-Za-z0-9_-]{10,})/) ?? s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+  return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1000` : s;
+}
+
 export const driveUploadUrl = (store: UploadStore) => store.drive_upload_url || DRIVE_UPLOAD_URL || '';
 
 /**

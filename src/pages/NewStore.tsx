@@ -4,6 +4,7 @@ import { supabase, must } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/components/ui';
+import { uploadStoreFile } from '@/lib/upload';
 import StoreForm, { emptyStoreForm } from '@/components/StoreForm';
 import type { Store } from '@/lib/types';
 
@@ -20,8 +21,16 @@ export default function NewStore() {
       <StoreForm
         initial={{ ...emptyStoreForm, email: user?.email ?? '' }}
         submitLabel="สร้างร้าน"
-        onSubmit={async (values) => {
+        onSubmit={async (values, { logoFile }) => {
           const store = must(await supabase.rpc('create_store', { p_store: values })) as Store;
+          if (logoFile) {
+            try {
+              const logo_url = await uploadStoreFile(store, logoFile, 'logo');
+              must(await supabase.from('stores').update({ logo_url }).eq('id', store.id).select('id'));
+            } catch (e) {
+              toast.err(`สร้างร้านแล้ว แต่อัปโหลดโลโก้ไม่สำเร็จ (${(e as Error).message}) — อัปโหลดใหม่ได้ที่หน้าตั้งค่าร้าน`);
+            }
+          }
           await reload();
           selectStore(store.id);
           toast.ok(`สร้างร้าน ${store.name} เรียบร้อย`);

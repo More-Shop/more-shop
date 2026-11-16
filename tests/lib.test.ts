@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { bahtText, fmt2 } from '../src/lib/format';
 import { crc16, promptPayPayload } from '../src/lib/promptpay';
 import { isValidThaiTaxId } from '../src/lib/taxid';
-import { parseDriveFolderId } from '../src/lib/upload';
+import { displayableImageUrl, parseDriveFolderId } from '../src/lib/upload';
 import { computeTotals } from '../src/lib/totals';
 import { cashBook, generalJournal, incomeStatement, salesVatReport } from '../src/lib/reports';
 import type { Account, LedgerEntry, Store } from '../src/lib/types';
@@ -122,5 +122,15 @@ describe('parseDriveFolderId', () => {
     expect(parseDriveFolderId('https://drive.google.com/open?id=1AbCdEfGhIjKlMnOp')).toBe('1AbCdEfGhIjKlMnOp');
     expect(parseDriveFolderId('1AbCdEfGhIjKlMnOp')).toBe('1AbCdEfGhIjKlMnOp');
     expect(parseDriveFolderId('hello world')).toBe('');
+  });
+});
+
+describe('displayableImageUrl', () => {
+  it('turns Google Drive share links into thumbnail URLs', () => {
+    expect(displayableImageUrl('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view?usp=sharing'))
+      .toBe('https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOp&sz=w1000');
+    expect(displayableImageUrl('https://drive.google.com/open?id=1AbCdEfGhIjKlMnOp'))
+      .toBe('https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOp&sz=w1000');
+    expect(displayableImageUrl('https://example.com/logo.png')).toBe('https://example.com/logo.png');
   });
 });

@@ -1,8 +1,8 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
-import { ImagePlus } from 'lucide-react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { ImagePlus, X } from 'lucide-react';
 import { Field, ErrorBox, Spinner, Toggle } from './ui';
 import { isValidThaiTaxId } from '@/lib/taxid';
-import { parseDriveFolderId, uploadStoreFile } from '@/lib/upload';
+import { displayableImageUrl, parseDriveFolderId, uploadStoreFile } from '@/lib/upload';
 import type { Store } from '@/lib/types';
 
 export interface StoreFormValues {
@@ -54,7 +54,9 @@ function Section({ title, desc, children }: { title: string; desc?: string; chil
 }
 
 export default function StoreForm({ initial, onSubmit, submitLabel, savedStore }: {
-  initial: StoreFormValues; onSubmit: (v: StoreFormValues) => Promise<void>; submitLabel: string;
+  initial: StoreFormValues; submitLabel: string;
+  /** logoFile: a logo picked before the store exists; the caller uploads it once the store is created. */
+  onSubmit: (v: StoreFormValues, extra: { logoFile: File | null }) => Promise<void>;
   /** The store as saved in the database (enables logo upload). */
   savedStore?: Pick<Store, 'id' | 'drive_folder_id' | 'drive_upload_url'>;
 }) {
@@ -63,6 +65,14 @@ export default function StoreForm({ initial, onSubmit, submitLabel, savedStore }
   const [v, setV] = useState<StoreFormValues>(initial);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [pendingLogo, setPendingLogo] = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pendingLogo) { setPendingPreview(null); return; }
+    const url = URL.createObjectURL(pendingLogo);
+    setPendingPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pendingLogo]);
   const [error, setError] = useState<string | null>(null);
   const [slugTouched, setSlugTouched] = useState(Boolean(initial.slug));
   const set = <K extends keyof StoreFormValues>(k: K, val: StoreFormValues[K]) => setV((x) => ({ ...x, [k]: val }));
@@ -78,7 +88,7 @@ export default function StoreForm({ initial, onSubmit, submitLabel, savedStore }
     if (driveInput.trim() && !v.drive_folder_id) { setError('ลิงก์โฟลเดอร์ Google Drive ไม่ถูกต้อง — คัดลอกลิงก์จากแถบที่อยู่ตอนเปิดโฟลเดอร์'); return; }
     if (v.drive_upload_url && !v.drive_upload_url.startsWith('https://script.google.com/')) { setError('ลิงก์ Apps Script ต้องขึ้นต้นด้วย https://script.google.com/'); return; }
     setBusy(true);
-    try { await onSubmit(v); }
+    try { await onSubmit({ ...v, logo_url: displayableImageUrl(v.logo_url) }, { logoFile: pendingLogo }); }
     catch (err) {
       const m = (err as Error).message;
       setError(m.includes('stores_slug_key') || m.includes('duplicate') ? 'รหัสร้าน (URL) นี้ถูกใช้แล้ว กรุณาเปลี่ยน' : m);
@@ -86,7 +96,9 @@ export default function StoreForm({ initial, onSubmit, submitLabel, savedStore }
   }
 
   async function onLogo(file: File | undefined) {
-    if (!file || !savedStore) return;
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setError('โลโก้ต้องเป็นไฟล์รูปภาพ'); return; }
+    if (!savedStore) { setPendingLogo(file); set('logo_url', ''); return; }  // new store: upload after it is created
     setUploading(true);
     try { set('logo_url', await uploadStoreFile(savedStore, file, 'logo')); }
     catch (e) { setError((e as Error).message); }
@@ -109,16 +121,26 @@ export default function StoreForm({ initial, onSubmit, submitLabel, savedStore }
         <Field label="เบอร์โทรร้าน"><input className="input" type="tel" value={v.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
         <Field label="อีเมลร้าน" hint="อีเมลติดต่อของร้านนี้ (แยกจากร้านอื่น)"><input className="input" type="email" value={v.email} onChange={(e) => set('email', e.target.value)} /></Field>
         <Field label="ที่อยู่" className="sm:col-span-2"><textarea className="input" rows={2} value={v.address} onChange={(e) => set('address', e.target.value)} /></Field>
-        <Field label="โลโก้ร้าน" hint={storeId ? 'อัปโหลดรูป หรือวางลิงก์รูป' : 'วางลิงก์รูปได้เลย หรืออัปโหลดภายหลังในหน้าตั้งค่า'}>
+        <Field label="โลโก้ร้าน" className="sm:col-span-2"
+          hint={pendingLogo
+            ? `จะอัปโหลด “${pendingLogo.name}” ${v.drive_folder_id ? 'ไปเก็บในโฟลเดอร์ Google Drive ของร้าน' : 'ไปเก็บในระบบ'} หลังกด “${submitLabel}”`
+            : storeId
+              ? `กดปุ่มรูปเพื่อเลือกไฟล์จากเครื่อง / มือถือ / Google Drive${savedStore?.drive_folder_id ? ' — เก็บในโฟลเดอร์ Google Drive ของร้าน' : ''} หรือวางลิงก์รูป`
+              : 'กดปุ่มรูปเพื่อเลือกไฟล์จากเครื่อง / มือถือ / Google Drive หรือวางลิงก์รูป (ลิงก์แชร์ของ Google Drive ใช้ได้)'}>
           <div className="flex items-center gap-2">
-            {v.logo_url && <img src={v.logo_url} alt="" className="h-10 w-10 rounded-lg object-cover" />}
-            <input className="input" value={v.logo_url} onChange={(e) => set('logo_url', e.target.value)} placeholder="https://…" />
-            {storeId && (
-              <label className="btn-secondary shrink-0 cursor-pointer px-3">
-                {uploading ? <Spinner /> : <ImagePlus className="h-4 w-4" />}
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => onLogo(e.target.files?.[0])} />
-              </label>
+            {(pendingPreview || v.logo_url) && (
+              <div className="relative shrink-0">
+                <img src={pendingPreview ?? displayableImageUrl(v.logo_url)} alt="" className="h-14 w-14 rounded-xl border border-slate-200 object-cover" />
+                <button type="button" aria-label="เอาโลโก้ออก" onClick={() => { setPendingLogo(null); set('logo_url', ''); }}
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-white"><X className="h-3 w-3" /></button>
+              </div>
             )}
+            <label className="btn-secondary shrink-0 cursor-pointer">
+              {uploading ? <Spinner /> : <ImagePlus className="h-4 w-4" />} เลือกรูป
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => { void onLogo(e.target.files?.[0]); e.target.value = ''; }} />
+            </label>
+            <input className="input" value={pendingLogo ? '' : v.logo_url} disabled={!!pendingLogo}
+              onChange={(e) => set('logo_url', e.target.value)} placeholder={pendingLogo ? 'ใช้ไฟล์ที่เลือก' : 'หรือวางลิงก์รูป https://…'} />
           </div>
         </Field>
         <Field label="สีประจำร้าน">
