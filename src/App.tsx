@@ -26,7 +26,6 @@ const PublicMenu = lazy(() => import('@/pages/public/PublicMenu'));
 const PublicBooking = lazy(() => import('@/pages/public/PublicBooking'));
 const LineEntry = lazy(() => import('@/pages/public/LineEntry'));
 const BillStatus = lazy(() => import('@/pages/public/BillStatus'));
-const AdminConsole = lazy(() => import('@/pages/platform/AdminConsole'));
 
 function RequireRole({ roles, children }: { roles: ('owner' | 'manager' | 'staff')[]; children: ReactNode }) {
   const { can } = useStore();
@@ -40,11 +39,9 @@ function StaffArea() {
   if (loading || (session && (account.loading || storesLoading))) return <PageLoading />;
   if (!session) return <Login />;
   if (!account.isAdmin && account.status !== 'approved') return <AccountWaiting />;
-  const admin = account.isAdmin ? <Route path="/admin/*" element={<AdminConsole />} /> : null;
   if (!store) {
     return (
       <Routes>
-        {admin}
         <Route path="/new-store" element={<NewStore />} />
         <Route path="*" element={<StorePicker />} />
       </Routes>
@@ -53,7 +50,6 @@ function StaffArea() {
   const mgr = ['owner', 'manager'] as const;
   return (
     <Routes>
-      {admin}
       <Route path="/new-store" element={<NewStore />} />
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />

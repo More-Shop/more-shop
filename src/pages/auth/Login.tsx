@@ -7,7 +7,7 @@ import { ErrorBox, Field, Spinner } from '@/components/ui';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
-export default function Login() {
+export default function Login({ admin = false }: { admin?: boolean }) {
   const { notice } = useAuth();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
@@ -52,7 +52,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg"><Store className="h-7 w-7" /></div>
-          <h1 className="text-2xl font-bold text-slate-900">{APP_NAME}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{APP_NAME}{admin && ' · ผู้ดูแลระบบ'}</h1>
           <p className="text-sm text-slate-500">ระบบจัดการร้าน · POS · บัญชี · จองโต๊ะ</p>
         </div>
         <form onSubmit={submit} className="card space-y-4 p-6">
@@ -77,7 +77,7 @@ export default function Login() {
           )}
           <button className="btn-primary w-full py-3" disabled={busy}>{busy && <Spinner />}{title}</button>
           <div className="flex justify-between text-sm">
-            {mode === 'login'
+            {admin ? <span /> : mode === 'login'
               ? <button type="button" className="text-brand-700 hover:underline" onClick={() => setMode('signup')}>สมัครใช้งานใหม่</button>
               : <button type="button" className="text-brand-700 hover:underline" onClick={() => setMode('login')}>มีบัญชีแล้ว? เข้าสู่ระบบ</button>}
             {mode === 'login' && <button type="button" className="text-slate-500 hover:underline" onClick={() => setMode('forgot')}>ลืมรหัสผ่าน</button>}

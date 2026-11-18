@@ -8,5 +8,14 @@ export default defineConfig({
   base: process.env.BASE_PATH || '/',
   plugins: [react()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  // Two separate pages: the shop app (index.html) and the platform admin site (admin.html).
+  build: {
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        admin: fileURLToPath(new URL('./admin.html', import.meta.url)),
+      },
+    },
+  },
   test: { environment: 'node', include: ['tests/**/*.test.ts'] },
 });

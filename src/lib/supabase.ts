@@ -37,13 +37,19 @@ async function watchedFetch(input: RequestInfo | URL, init?: RequestInit) {
   return res;
 }
 
+/** The admin site (admin.html) keeps its own login, separate from the shop app. */
+export const IS_ADMIN_SITE = typeof window !== 'undefined' && /\/admin(\.html)?$/.test(window.location.pathname);
+
 // A placeholder URL keeps the client constructible so the app can show the
 // "not configured" screen instead of crashing.
 export const supabase = createClient(
   isConfigured ? SUPABASE_URL : 'http://localhost:54321',
   isConfigured ? SUPABASE_ANON_KEY : 'public-anon-key',
   {
-    auth: { persistSession: true, autoRefreshToken: true, storage: sessionStorageAdapter },
+    auth: {
+      persistSession: true, autoRefreshToken: true, storage: sessionStorageAdapter,
+      ...(IS_ADMIN_SITE ? { storageKey: 'moreshop-admin-auth' } : {}),
+    },
     global: { fetch: watchedFetch },
   },
 );

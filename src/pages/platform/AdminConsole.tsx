@@ -1,17 +1,21 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowLeft, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, ExternalLink, KeyRound, LayoutDashboard,
-  MailCheck, Search, ShieldCheck, ShieldOff, Store as StoreIcon, UserPlus, Users, XCircle,
+  AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, ExternalLink, KeyRound, LayoutDashboard,
+  LogOut, MailCheck, Search, ShieldCheck, ShieldOff, Store as StoreIcon, UserPlus, Users, XCircle,
 } from 'lucide-react';
 import { supabase, must } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
-import { useStore } from '@/lib/store';
 import { APP_NAME, publicLink } from '@/lib/config';
 import { fmt2, thaiDateTime } from '@/lib/format';
 import type { Role } from '@/lib/types';
 import { EmptyState, ErrorBox, Field, Modal, PageLoading, Spinner, toast, useLoad } from '@/components/ui';
 import { ROLE_LABEL } from '@/components/Layout';
+
+/** Open a store's back office in the shop app (new tab), as the admin. */
+function openStore(storeId: string, path = '/') {
+  try { localStorage.setItem('moreshop.currentStore', storeId); } catch { /* ignore */ }
+  window.open(`./#${path}`, '_blank', 'noopener');
+}
 
 type Status = 'pending' | 'approved' | 'suspended';
 interface AdminUser {
@@ -43,6 +47,7 @@ const STATUS: Record<Status, { label: string; cls: string }> = {
 type Tab = 'overview' | 'users' | 'stores' | 'problems';
 
 export default function AdminConsole() {
+  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('users');
   const [ov, , , reloadOv] = useLoad(async () => must(await supabase.rpc('admin_overview')) as Overview, []);
 
@@ -57,12 +62,12 @@ export default function AdminConsole() {
     <div className="min-h-full bg-slate-50">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
-          <Link to="/" className="btn-ghost -ml-2 px-2" aria-label="กลับ"><ArrowLeft className="h-5 w-5" /></Link>
           <ShieldCheck className="h-6 w-6 text-brand-600" />
           <div className="min-w-0 flex-1">
             <div className="font-bold">ผู้ดูแลระบบ {APP_NAME}</div>
-            <div className="text-xs text-slate-500">อนุมัติสมาชิก · จัดการทุกร้าน · ตรวจและแก้ปัญหา</div>
+            <div className="text-xs text-slate-500">{user?.email}</div>
           </div>
+          <button className="btn-ghost" onClick={() => supabase.auth.signOut()}><LogOut className="h-4 w-4" /> ออก</button>
         </div>
         <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-3">
           {tabs.map((t) => (
@@ -147,8 +152,6 @@ function UsersTab({ onChanged }: { onChanged: () => Promise<void> }) {
 
 function UserCard({ u, onChanged }: { u: AdminUser; onChanged: () => Promise<void> }) {
   const { user } = useAuth();
-  const { selectStore } = useStore();
-  const navigate = useNavigate();
   const [busy, setBusy] = useState<string | null>(null);
   const [open, setOpen] = useState(u.status === 'pending');
   const [note, setNote] = useState(u.admin_note ?? '');
@@ -203,7 +206,7 @@ function UserCard({ u, onChanged }: { u: AdminUser; onChanged: () => Promise<voi
               <div className="flex flex-wrap gap-2">
                 {u.stores.map((s) => (
                   <button key={s.store_id} className="btn-secondary py-1.5 text-xs"
-                    onClick={() => { selectStore(s.store_id); navigate('/'); }}>
+                    onClick={() => openStore(s.store_id)}>
                     {s.name} · {ROLE_LABEL[s.role]} <ExternalLink className="h-3 w-3" />
                   </button>
                 ))}
@@ -262,9 +265,7 @@ function StoresTab() {
   const [stores, loading, error] = useLoad(async () => must(await supabase.rpc('admin_list_stores')) as AdminStore[], []);
   const [q, setQ] = useState('');
   const [addTo, setAddTo] = useState<AdminStore | null>(null);
-  const { selectStore } = useStore();
-  const navigate = useNavigate();
-  const open = (id: string, path = '/') => { selectStore(id); navigate(path); };
+  const open = openStore;
 
   if (loading && !stores) return <PageLoading />;
   const list = (stores ?? []).filter((s) => !q || `${s.name} ${s.slug} ${s.owners.map((o) => o.email).join(' ')}`.toLowerCase().includes(q.toLowerCase()));
@@ -357,9 +358,6 @@ function ProblemsTab({ onChanged }: { onChanged: () => Promise<void> }) {
   const [errors, loading, error, reload] = useLoad(async () =>
     must(await supabase.rpc('admin_list_errors', { p_include_resolved: all })) as AppError[], [all]);
   const [busy, setBusy] = useState(false);
-  const { selectStore } = useStore();
-  const navigate = useNavigate();
-
   // Group identical messages so a repeated problem shows once with a count.
   const groups = useMemo(() => {
     const m = new Map<string, AppError[]>();
@@ -407,7 +405,7 @@ function ProblemsTab({ onChanged }: { onChanged: () => Promise<void> }) {
                     {e.user_agent && <div className="mt-0.5 truncate text-[11px] text-slate-400">{e.user_agent}</div>}
                   </div>
                   <div className="flex gap-2">
-                    {e.store_id && <button className="btn-secondary py-1.5 text-xs" onClick={() => { selectStore(e.store_id); navigate('/'); }}>เปิดร้าน</button>}
+                    {e.store_id && <button className="btn-secondary py-1.5 text-xs" onClick={() => openStore(e.store_id!)}>เปิดร้าน</button>}
                     {!e.resolved && <button className="btn-secondary py-1.5 text-xs" disabled={busy} onClick={() => resolve(g.map((x) => x.id))}><Check className="h-3 w-3" /> แก้แล้ว</button>}
                   </div>
                 </div>
