@@ -2,6 +2,8 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { StoreProvider, useStore } from '@/lib/store';
+import { AccountProvider, useAccount } from '@/lib/account';
+import AccountWaiting from '@/pages/AccountWaiting';
 import { isConfigured } from '@/lib/config';
 import { PageLoading, Toaster } from '@/components/ui';
 import Layout from '@/components/Layout';
@@ -24,6 +26,7 @@ const PublicMenu = lazy(() => import('@/pages/public/PublicMenu'));
 const PublicBooking = lazy(() => import('@/pages/public/PublicBooking'));
 const LineEntry = lazy(() => import('@/pages/public/LineEntry'));
 const BillStatus = lazy(() => import('@/pages/public/BillStatus'));
+const AdminConsole = lazy(() => import('@/pages/platform/AdminConsole'));
 
 function RequireRole({ roles, children }: { roles: ('owner' | 'manager' | 'staff')[]; children: ReactNode }) {
   const { can } = useStore();
@@ -32,12 +35,16 @@ function RequireRole({ roles, children }: { roles: ('owner' | 'manager' | 'staff
 
 function StaffArea() {
   const { session, loading } = useAuth();
+  const account = useAccount();
   const { store, loading: storesLoading } = useStore();
-  if (loading || (session && storesLoading)) return <PageLoading />;
+  if (loading || (session && (account.loading || storesLoading))) return <PageLoading />;
   if (!session) return <Login />;
+  if (!account.isAdmin && account.status !== 'approved') return <AccountWaiting />;
+  const admin = account.isAdmin ? <Route path="/admin/*" element={<AdminConsole />} /> : null;
   if (!store) {
     return (
       <Routes>
+        {admin}
         <Route path="/new-store" element={<NewStore />} />
         <Route path="*" element={<StorePicker />} />
       </Routes>
@@ -46,6 +53,7 @@ function StaffArea() {
   const mgr = ['owner', 'manager'] as const;
   return (
     <Routes>
+      {admin}
       <Route path="/new-store" element={<NewStore />} />
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />
@@ -78,7 +86,7 @@ export default function App() {
             <Route path="/s/:slug/line" element={<LineEntry />} />
             <Route path="/bill/:orderId" element={<BillStatus />} />
             {/* Staff back office */}
-            <Route path="/*" element={<StoreProvider><StaffArea /></StoreProvider>} />
+            <Route path="/*" element={<AccountProvider><StoreProvider><StaffArea /></StoreProvider></AccountProvider>} />
           </Routes>
         </Suspense>
         <Toaster />

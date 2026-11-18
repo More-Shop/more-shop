@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase, must } from './supabase';
 import { useAuth } from './auth';
+import { useAccount } from './account';
 import { applyTheme } from './theme';
 import type { Role, Store } from './types';
 
@@ -9,6 +10,8 @@ interface StoreState {
   memberships: Membership[];
   store: Store | null;
   role: Role | null;
+  /** A platform admin is managing a store they are not a member of. */
+  adminView: boolean;
   loading: boolean;
   selectStore: (id: string | null) => void;
   reload: () => Promise<void>;
@@ -20,27 +23,40 @@ const Ctx = createContext<StoreState | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { isAdmin } = useAccount();
   const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [adminStore, setAdminStore] = useState<Store | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(() => {
     try { return localStorage.getItem(KEY); } catch { return null; }
   });
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
-    if (!user) { setMemberships([]); setLoading(false); return; }
+    if (!user) { setMemberships([]); setAdminStore(null); setLoading(false); return; }
     setLoading(true);
     try {
       const rows = must(await supabase.from('store_members').select('role, store:stores(*)').eq('user_id', user.id));
-      setMemberships((rows as unknown as Membership[]).filter((r) => r.store)
-        .sort((a, b) => a.store.name.localeCompare(b.store.name, 'th')));
+      const ms = (rows as unknown as Membership[]).filter((r) => r.store)
+        .sort((a, b) => a.store.name.localeCompare(b.store.name, 'th'));
+      setMemberships(ms);
+      // Platform admins can open any store, even one they don't belong to.
+      if (isAdmin && currentId && !ms.some((m) => m.store.id === currentId)) {
+        const s = must(await supabase.from('stores').select('*').eq('id', currentId).maybeSingle()) as Store | null;
+        setAdminStore(s);
+      } else {
+        setAdminStore(null);
+      }
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, isAdmin, currentId]);
 
   useEffect(() => { void reload(); }, [reload]);
 
-  const current = memberships.find((m) => m.store.id === currentId) ?? (memberships.length === 1 ? memberships[0] : null);
+  const member = memberships.find((m) => m.store.id === currentId);
+  const viaAdmin = !member && adminStore && adminStore.id === currentId ? { role: 'owner' as Role, store: adminStore } : null;
+  const current = member ?? viaAdmin ?? (!currentId && memberships.length === 1 ? memberships[0] : null)
+    ?? (currentId && !isAdmin && memberships.length === 1 ? memberships[0] : null);
 
   useEffect(() => { applyTheme(current?.store.theme_color); }, [current?.store.theme_color]);
 
@@ -48,6 +64,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     memberships,
     store: current?.store ?? null,
     role: current?.role ?? null,
+    adminView: Boolean(viaAdmin && current === viaAdmin),
     loading,
     selectStore: (id) => {
       setCurrentId(id);
@@ -55,7 +72,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     reload,
     can: (...roles) => Boolean(current && roles.includes(current.role)),
-  }), [memberships, current, loading, reload]);
+  }), [memberships, current, viaAdmin, loading, reload]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

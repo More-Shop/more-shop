@@ -6,6 +6,8 @@ insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'owner-a@more.shop'),
   ('00000000-0000-0000-0000-00000000000b', 'owner-b@more.shop'),
   ('00000000-0000-0000-0000-00000000000c', 'staff-a@more.shop');
+-- Accounts start "pending" (platform_admin migration); approve the test users.
+update public.profiles set status = 'approved';
 
 create or replace function pg_temp.as_user(p uuid) returns void language plpgsql as $$
 begin

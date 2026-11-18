@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   BookOpen, CalendarDays, ChevronDown, ClipboardList, FileBarChart, LayoutDashboard, LogOut, Menu as MenuIcon,
-  QrCode, Settings, ShoppingCart, Store as StoreIcon, Users, UtensilsCrossed, Wallet, X,
+  QrCode, Settings, ShieldCheck, ShoppingCart, Store as StoreIcon, Users, UtensilsCrossed, Wallet, X,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
@@ -10,6 +10,7 @@ import { useCurrentStore } from '@/lib/store';
 import { APP_NAME } from '@/lib/config';
 import type { Role } from '@/lib/types';
 import { usePendingCount } from './usePendingCount';
+import { useAccount } from '@/lib/account';
 
 const NAV: { to: string; label: string; icon: typeof StoreIcon; roles?: Role[] }[] = [
   { to: '/', label: 'ภาพรวม', icon: LayoutDashboard },
@@ -28,7 +29,8 @@ export const ROLE_LABEL: Record<Role, string> = { owner: 'เจ้าของ'
 
 export default function Layout() {
   const { user } = useAuth();
-  const { store, role, memberships, selectStore } = useCurrentStore();
+  const { store, role, memberships, selectStore, adminView } = useCurrentStore();
+  const { isAdmin } = useAccount();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const pending = usePendingCount(store.id);
@@ -61,6 +63,12 @@ export default function Layout() {
               <span className="badge animate-pulse bg-red-500 text-white">{pending}</span>)}
           </NavLink>
         ))}
+        {isAdmin && (
+          <NavLink to="/admin" onClick={() => setOpen(false)}
+            className="mt-3 flex items-center gap-3 rounded-xl border border-dashed border-brand-500 px-3 py-2.5 text-sm font-semibold text-brand-700 hover:bg-brand-50">
+            <ShieldCheck className="h-5 w-5" /> ผู้ดูแลระบบ
+          </NavLink>
+        )}
       </nav>
       <div className="border-t border-slate-100 p-3">
         <div className="mb-2 truncate px-3 text-xs text-slate-400">{user?.email}</div>
@@ -90,6 +98,13 @@ export default function Layout() {
           <span className="truncate font-bold">{store.name}</span>
           {pending > 0 && <NavLink to="/orders" className="badge ml-auto bg-red-500 text-white">ออเดอร์ใหม่ {pending}</NavLink>}
         </header>
+        {adminView && (
+          <div className="flex flex-wrap items-center gap-2 bg-slate-900 px-4 py-2 text-sm text-white">
+            <ShieldCheck className="h-4 w-4 text-amber-300" />
+            <span className="flex-1">โหมดผู้ดูแลระบบ — กำลังจัดการร้าน <b>{store.name}</b> แทนเจ้าของร้าน</span>
+            <button className="rounded-lg bg-white/15 px-3 py-1 font-semibold hover:bg-white/25" onClick={() => { selectStore(null); navigate('/admin'); }}>กลับหน้าผู้ดูแล</button>
+          </div>
+        )}
         <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"><Outlet /></main>
       </div>
     </div>

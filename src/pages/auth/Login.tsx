@@ -12,6 +12,7 @@ export default function Login() {
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [profile, setProfile] = useState({ full_name: '', phone: '', business_name: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -25,10 +26,10 @@ export default function Login() {
         if (error) throw error;
       } else if (mode === 'signup') {
         const { data, error } = await supabase.auth.signUp({
-          email, password, options: { emailRedirectTo: window.location.origin + window.location.pathname },
+          email, password, options: { emailRedirectTo: window.location.origin + window.location.pathname, data: profile },
         });
         if (error) throw error;
-        if (!data.session) setInfo('สมัครเรียบร้อย — กรุณายืนยันอีเมลจากกล่องจดหมาย แล้วกลับมาเข้าสู่ระบบ');
+        if (!data.session) setInfo('สมัครเรียบร้อย — กรุณายืนยันอีเมลจากกล่องจดหมาย จากนั้นรอผู้ดูแลระบบอนุมัติบัญชี');
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: window.location.origin + window.location.pathname,
@@ -62,6 +63,11 @@ export default function Login() {
           <Field label="อีเมล">
             <input className="input" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
+          {mode === 'signup' && <>
+            <Field label="ชื่อ-นามสกุล"><input className="input" required value={profile.full_name} onChange={(e) => setProfile({ ...profile, full_name: e.target.value })} /></Field>
+            <Field label="เบอร์โทรศัพท์"><input className="input" type="tel" required value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} /></Field>
+            <Field label="ชื่อร้านที่จะใช้ระบบ" hint="ถ้าเป็นพนักงานของร้าน ใส่ชื่อร้านที่ทำงาน"><input className="input" value={profile.business_name} onChange={(e) => setProfile({ ...profile, business_name: e.target.value })} /></Field>
+          </>}
           {mode !== 'forgot' && (
             <Field label="รหัสผ่าน" hint={mode === 'signup' ? 'อย่างน้อย 8 ตัวอักษร' : undefined}>
               <input className="input" type="password" required minLength={mode === 'signup' ? 8 : 1}

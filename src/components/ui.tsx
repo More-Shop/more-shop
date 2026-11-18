@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Loader2, X } from 'lucide-react';
+import { reportError } from '@/lib/errorlog';
 
 export function Spinner({ className = '' }: { className?: string }) {
   return <Loader2 className={`h-5 w-5 animate-spin ${className}`} />;
@@ -79,6 +80,7 @@ export function EmptyState({ icon, title, children }: { icon?: ReactNode; title:
 }
 
 export function ErrorBox({ error }: { error: string | null | undefined }) {
+  useEffect(() => { if (error) reportError(error); }, [error]);
   if (!error) return null;
   return <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>;
 }
@@ -88,7 +90,7 @@ type ToastKind = 'ok' | 'err';
 let pushToast: ((msg: string, kind: ToastKind) => void) | null = null;
 export const toast = {
   ok: (m: string) => pushToast?.(m, 'ok'),
-  err: (m: string) => pushToast?.(m, 'err'),
+  err: (m: string) => { pushToast?.(m, 'err'); reportError(m); },
 };
 
 export function Toaster() {

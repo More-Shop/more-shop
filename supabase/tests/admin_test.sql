@@ -1,0 +1,74 @@
+-- Platform admin / account approval tests. Run after rls_test.sql.
+\set QUIET on
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000000d1', 'new@more.shop', '{"full_name":"คุณใหม่","business_name":"ร้านใหม่"}'),
+  ('00000000-0000-0000-0000-0000000000ad', 'admin@more.shop', '{}');
+insert into public.platform_admins (user_id) values ('00000000-0000-0000-0000-0000000000ad');
+
+-- 1. A new sign-up is pending: cannot create a store, cannot call admin functions.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
+do $$ begin
+  if public.my_account() ->> 'status' <> 'pending' then raise exception 'new user not pending'; end if;
+  begin perform public.create_store('{"slug":"pending-shop","name":"P"}'); raise exception 'pending created store';
+  exception when raise_exception then if sqlerrm not like '%อนุมัติ%' then raise; end if; end;
+  begin perform * from public.admin_list_users(); raise exception 'non-admin listed users';
+  exception when raise_exception then if sqlerrm not like '%ผู้ดูแลระบบ%' then raise; end if; end;
+  if (select count(*) from public.profiles) <> 1 then raise exception 'user sees other profiles'; end if;
+end $$;
+reset role;
+
+-- 2. Admin sees everything, approves the new user, manages another store.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000ad');
+do $$ declare u record; begin
+  if (public.my_account() ->> 'is_admin')::boolean is not true then raise exception 'admin flag'; end if;
+  if (select count(*) from public.stores) <> 2 then raise exception 'admin should see all stores'; end if;
+  select * into u from public.admin_list_users() where email = 'new@more.shop';
+  if u.status <> 'pending' or u.business_name <> 'ร้านใหม่' then raise exception 'bad user row %', row_to_json(u); end if;
+  perform public.admin_set_user_status(u.user_id, 'approved', 'ตรวจแล้ว');
+  update public.stores set receipt_footer = 'แก้โดยแอดมิน' where slug = 'cafe-b';
+  if (select receipt_footer from public.stores where slug = 'cafe-b') <> 'แก้โดยแอดมิน' then raise exception 'admin edit'; end if;
+  if (select count(*) from public.admin_list_stores()) <> 2 then raise exception 'store list'; end if;
+  if (public.admin_overview() ->> 'stores')::int <> 2 then raise exception 'overview'; end if;
+  begin perform public.admin_set_platform_admin('00000000-0000-0000-0000-0000000000ad', false); raise exception 'removed last admin';
+  exception when raise_exception then if sqlerrm not like '%อย่างน้อย%' then raise; end if; end;
+end $$;
+reset role;
+
+-- 3. Approved user can now create a store.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
+select public.create_store('{"slug":"approved-shop","name":"A"}') is not null as ok \gset
+reset role;
+
+-- 4. Suspended owner loses access to their store.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000ad');
+select public.admin_set_user_status('00000000-0000-0000-0000-00000000000b', 'suspended', 'ทดสอบ');
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  if (select count(*) from public.stores) <> 0 then raise exception 'suspended user still sees store'; end if;
+end $$;
+reset role;
+
+-- 5. Owner adding a pending person as staff approves them.
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000e1', 'cashier2@more.shop');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select public.add_store_member((select id from public.stores where slug = 'more-shop'), 'cashier2@more.shop', 'staff');
+reset role;
+do $$ begin
+  if (select status from public.profiles where email = 'cashier2@more.shop') <> 'approved' then raise exception 'staff not auto-approved'; end if;
+end $$;
+
+-- 6. Errors can be reported anonymously and are listed for admins only.
+set role anon;
+select set_config('request.jwt.claims', '{"role":"anon"}', false);
+select public.log_client_error('ทดสอบ error', '#/s/more-shop', null, 'test-agent', '{"k":1}');
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000ad');
+do $$ declare n int; begin
+  select count(*) into n from public.admin_list_errors(false) where message = 'ทดสอบ error';
+  if n <> 1 then raise exception 'error not logged'; end if;
+  perform public.admin_resolve_errors(array(select id from public.admin_list_errors(false)));
+  if (select count(*) from public.admin_list_errors(false)) <> 0 then raise exception 'resolve'; end if;
+end $$;
+reset role;
+\echo ADMIN_TESTS_PASSED

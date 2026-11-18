@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { ChevronRight, LogOut, Plus, Store as StoreIcon } from 'lucide-react';
+import { ChevronRight, LogOut, Plus, ShieldCheck, Store as StoreIcon } from 'lucide-react';
+import { useAccount } from '@/lib/account';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { useStore } from '@/lib/store';
@@ -11,6 +12,7 @@ import { useEffect } from 'react';
 export default function StorePicker() {
   const { user } = useAuth();
   const { memberships, selectStore } = useStore();
+  const { isAdmin } = useAccount();
   useEffect(() => { applyTheme(null); document.title = APP_NAME; }, []);
 
   return (
@@ -22,6 +24,13 @@ export default function StorePicker() {
         </div>
         <button className="btn-ghost" onClick={() => supabase.auth.signOut()}><LogOut className="h-4 w-4" /> ออก</button>
       </div>
+      {isAdmin && (
+        <Link to="/admin" className="card mb-5 flex items-center gap-3 border-brand-500 bg-brand-50 p-4">
+          <ShieldCheck className="h-6 w-6 text-brand-600" />
+          <div className="flex-1"><div className="font-bold">ผู้ดูแลระบบ</div><div className="text-sm text-slate-500">อนุมัติสมาชิก · จัดการทุกร้าน · ตรวจปัญหา</div></div>
+          <ChevronRight className="h-5 w-5 text-slate-400" />
+        </Link>
+      )}
       <h2 className="mb-3 font-semibold text-slate-700">เลือกร้าน</h2>
       <div className="space-y-2">
         {memberships.map(({ store, role }) => (
