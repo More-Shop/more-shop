@@ -14,7 +14,7 @@ export default function AccountWaiting() {
   const suspended = status === 'suspended';
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-gradient-to-br from-brand-50 to-white p-4">
+    <div className="flex min-h-full items-center justify-center p-4">
       <div className="card w-full max-w-md p-6 text-center">
         <div className={`mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl ${suspended ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
           {suspended ? <ShieldOff className="h-7 w-7" /> : <Clock className="h-7 w-7" />}

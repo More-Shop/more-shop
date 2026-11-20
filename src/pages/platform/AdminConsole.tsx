@@ -59,8 +59,8 @@ export default function AdminConsole() {
   ];
 
   return (
-    <div className="min-h-full bg-slate-50">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
+    <div className="min-h-full">
+      <header className="sticky top-0 z-20 border-b border-orange-200/60 bg-white/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
           <ShieldCheck className="h-6 w-6 text-brand-600" />
           <div className="min-w-0 flex-1">

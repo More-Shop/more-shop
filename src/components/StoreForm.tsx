@@ -210,7 +210,7 @@ export default function StoreForm({ initial, onSubmit, submitLabel, savedStore }
         </div>
       </Section>
 
-      <div className="sticky bottom-0 -mx-1 flex justify-end bg-gradient-to-t from-slate-50 via-slate-50 px-1 pb-2 pt-4">
+      <div className="sticky bottom-0 -mx-1 flex justify-end bg-gradient-to-t from-orange-100/90 via-orange-100/60 to-transparent px-1 pb-2 pt-4">
         <button className="btn-primary px-8 py-3" disabled={busy}>{busy && <Spinner />}{submitLabel}</button>
       </div>
     </form>

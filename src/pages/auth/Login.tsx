@@ -48,7 +48,7 @@ export default function Login({ admin = false }: { admin?: boolean }) {
   const title = { login: 'เข้าสู่ระบบ', signup: 'สมัครใช้งาน', forgot: 'ลืมรหัสผ่าน' }[mode];
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-gradient-to-br from-brand-50 to-white p-4">
+    <div className="flex min-h-full items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg"><Store className="h-7 w-7" /></div>
