@@ -4,6 +4,7 @@ import { CheckCircle2, ImageOff, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { fmt2, fmtPrice } from '@/lib/format';
 import { computeTotals } from '@/lib/totals';
 import type { PublicStore } from '@/lib/types';
+import { displayableImageUrl } from '@/lib/upload';
 import { Modal, Spinner } from '@/components/ui';
 
 export interface CartItem { menu_item_id: string; qty: number; note: string }
@@ -133,14 +134,27 @@ export default function OrderingView({ data, tableLabel, canOrder, onPlace, head
   );
 }
 
-export function StoreBanner({ store, sub }: { store: PublicStore['store']; sub?: React.ReactNode }) {
+export type BannerStore = Pick<PublicStore['store'], 'name' | 'logo_url' | 'open_time' | 'close_time'> &
+  Partial<Pick<PublicStore['store'], 'cover_image_url' | 'welcome_text'>>;
+
+/** Store header on customer pages: brand colour, or the cover photo when the store has one. */
+export function StoreBanner({ store, sub }: { store: BannerStore; sub?: React.ReactNode }) {
+  const cover = store.cover_image_url ? displayableImageUrl(store.cover_image_url) : null;
+  const hours = store.open_time && store.close_time ? `เปิด ${store.open_time.slice(0, 5)}–${store.close_time.slice(0, 5)} น.` : '';
   return (
-    <div className="flex items-center gap-3 bg-brand-600 px-4 py-4 text-white">
-      {store.logo_url ? <img src={store.logo_url} alt="" className="h-12 w-12 rounded-xl bg-white object-cover" />
-        : <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-xl font-bold">{store.name.slice(0, 1)}</div>}
-      <div className="min-w-0">
-        <div className="truncate text-lg font-bold">{store.name}</div>
-        <div className="text-sm text-white/80">{sub ?? (store.open_time && store.close_time ? `เปิด ${store.open_time.slice(0, 5)}–${store.close_time.slice(0, 5)} น.` : '')}</div>
+    <div className={`relative overflow-hidden text-white ${cover ? 'min-h-[9.5rem]' : 'bg-brand-600'}`}>
+      {cover && <>
+        <img src={cover} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
+      </>}
+      <div className={`flex items-center gap-3 px-4 py-4 ${cover ? 'absolute inset-x-0 bottom-0' : 'relative'}`}>
+        {store.logo_url ? <img src={displayableImageUrl(store.logo_url)} alt="" className="h-12 w-12 shrink-0 rounded-xl bg-white object-cover shadow" />
+          : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20 text-xl font-bold">{store.name.slice(0, 1)}</div>}
+        <div className="min-w-0">
+          <div className="truncate text-lg font-bold drop-shadow">{store.name}</div>
+          {store.welcome_text && <div className="text-sm font-medium text-white/95 drop-shadow">{store.welcome_text}</div>}
+          <div className="text-xs text-white/80">{sub ?? hours}</div>
+        </div>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { supabase, must } from './supabase';
 import { useAuth } from './auth';
 import { useAccount } from './account';
-import { applyTheme } from './theme';
+import { applyBackground, applyTheme } from './theme';
 import type { Role, Store } from './types';
 
 interface Membership { role: Role; store: Store }
@@ -59,6 +59,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ?? (currentId && !isAdmin && memberships.length === 1 ? memberships[0] : null);
 
   useEffect(() => { applyTheme(current?.store.theme_color); }, [current?.store.theme_color]);
+  useEffect(() => { applyBackground(current?.store); },
+    [current?.store.bg_from, current?.store.bg_to, current?.store.bg_angle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = useMemo<StoreState>(() => ({
     memberships,

@@ -4,14 +4,14 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { useStore } from '@/lib/store';
 import { APP_NAME } from '@/lib/config';
-import { applyTheme } from '@/lib/theme';
+import { applyBackground, applyTheme } from '@/lib/theme';
 import { ROLE_LABEL } from '@/components/Layout';
 import { useEffect } from 'react';
 
 export default function StorePicker() {
   const { user } = useAuth();
   const { memberships, selectStore } = useStore();
-  useEffect(() => { applyTheme(null); document.title = APP_NAME; }, []);
+  useEffect(() => { applyTheme(null); applyBackground(null); document.title = APP_NAME; }, []);
 
   return (
     <div className="mx-auto max-w-xl p-4 sm:p-8">

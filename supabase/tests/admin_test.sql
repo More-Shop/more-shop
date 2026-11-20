@@ -72,3 +72,35 @@ do $$ declare n int; begin
 end $$;
 reset role;
 \echo ADMIN_TESTS_PASSED
+
+-- 7. Appearance: everyone reads it, only admins change it; stores carry their own look.
+set role anon;
+select set_config('request.jwt.claims', '{"role":"anon"}', false);
+do $$ begin
+  if public.public_appearance() ->> 'bg_from' <> '#fff7ed' then raise exception 'default appearance'; end if;
+end $$;
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  begin perform public.admin_set_appearance('{"bg_from":"#000000","bg_to":"#ffffff","bg_angle":90}'); raise exception 'owner changed platform look';
+  exception when raise_exception then if sqlerrm not like '%ผู้ดูแลระบบ%' then raise; end if; end;
+  update public.stores set bg_from = '#ecfeff', bg_to = '#67e8f9', bg_angle = 45, welcome_text = 'ยินดีต้อนรับ' where slug = 'more-shop';
+end $$;
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000ad');
+do $$ begin
+  begin perform public.admin_set_appearance('{"bg_from":"red","bg_to":"#ffffff","bg_angle":90}'); raise exception 'bad colour accepted';
+  exception when raise_exception then if sqlerrm not like '%ไม่ถูกต้อง%' then raise; end if; end;
+  perform public.admin_set_appearance('{"bg_from":"#fdf2f8","bg_to":"#f9a8d4","bg_angle":180}');
+  update public.stores set cover_image_url = 'https://example.com/cover.jpg' where slug = 'cafe-b';   -- admin edits any store
+end $$;
+reset role;
+set role anon;
+select set_config('request.jwt.claims', '{"role":"anon"}', false);
+do $$ begin
+  if (public.public_appearance() ->> 'bg_angle')::int <> 180 then raise exception 'appearance not saved'; end if;
+  if public.public_store('more-shop') -> 'store' ->> 'bg_to' <> '#67e8f9' then raise exception 'store bg not public'; end if;
+  if public.public_store('cafe-b') -> 'store' ->> 'cover_image_url' is null then raise exception 'cover'; end if;
+end $$;
+reset role;
+\echo APPEARANCE_TESTS_PASSED

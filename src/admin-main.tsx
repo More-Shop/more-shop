@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { ShieldOff } from 'lucide-react';
 import './index.css';
 import { installGlobalErrorReporting } from './lib/errorlog';
+import { loadPlatformAppearance } from './lib/theme';
 import { AuthProvider, useAuth } from './lib/auth';
 import { AccountProvider, useAccount } from './lib/account';
 import { isConfigured, APP_NAME } from './lib/config';
@@ -12,6 +13,7 @@ import Login from './pages/auth/Login';
 import NotConfigured from './pages/NotConfigured';
 
 installGlobalErrorReporting();
+void loadPlatformAppearance(async () => (await supabase.rpc('public_appearance')).data);
 const AdminConsole = lazy(() => import('./pages/platform/AdminConsole'));
 
 /** Platform admin site — separate page and separate login from the shop app. */

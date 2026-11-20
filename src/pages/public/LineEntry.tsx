@@ -44,7 +44,7 @@ export default function LineEntry() {
     callFunction<T>('line-liff', { action, slug, id_token: line.idToken, ...payload });
 
   return (
-    <div className="mx-auto min-h-full max-w-xl bg-slate-50">
+    <div className="mx-auto min-h-full max-w-xl">
       <StoreBanner store={data.store} sub={`สวัสดีคุณ ${line.name}`} />
       {step === 'home' && (
         <div className="grid gap-3 p-4">

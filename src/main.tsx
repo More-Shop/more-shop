@@ -3,8 +3,11 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { installGlobalErrorReporting } from './lib/errorlog';
+import { loadPlatformAppearance } from './lib/theme';
+import { supabase } from './lib/supabase';
 
 installGlobalErrorReporting();
+void loadPlatformAppearance(async () => (await supabase.rpc('public_appearance')).data);
 
 // LINE LIFF endpoint URL is "<site>/?liff=<store-slug>" (hash fragments are
 // not allowed there), so translate it into the hash route of the LIFF page.

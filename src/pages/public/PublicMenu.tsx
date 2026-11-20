@@ -21,7 +21,7 @@ export default function PublicMenu() {
 
   const canOrder = Boolean(table) && data.store.qr_order_enabled;
   return (
-    <div className="mx-auto min-h-full max-w-3xl bg-slate-50">
+    <div className="mx-auto min-h-full max-w-3xl">
       <OrderingView
         data={data}
         canOrder={canOrder}

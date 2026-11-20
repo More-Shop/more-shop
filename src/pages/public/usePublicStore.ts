@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { applyTheme } from '@/lib/theme';
+import { applyBackground, applyTheme } from '@/lib/theme';
 import type { PublicStore } from '@/lib/types';
 import { useLoad } from '@/components/ui';
 
@@ -12,7 +12,7 @@ export function usePublicStore(slug: string | undefined) {
   }, [slug]);
   const store = res[0]?.store;
   useEffect(() => {
-    if (store) { applyTheme(store.theme_color); document.title = store.name; }
+    if (store) { applyTheme(store.theme_color); applyBackground(store); document.title = store.name; }
   }, [store]);
   return res;
 }

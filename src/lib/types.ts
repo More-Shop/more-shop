@@ -37,6 +37,11 @@ export interface Store {
   line_login_channel_id: string | null;
   drive_folder_id: string | null;
   drive_upload_url: string | null;
+  bg_from: string | null;
+  bg_to: string | null;
+  bg_angle: number | null;
+  cover_image_url: string | null;
+  welcome_text: string | null;
 }
 
 export interface Category { id: string; store_id: string; name: string; sort: number; active: boolean }
@@ -156,7 +161,8 @@ export interface LedgerEntry {
 export interface PublicStore {
   store: Pick<Store, 'id' | 'slug' | 'name' | 'logo_url' | 'theme_color' | 'address' | 'phone' | 'open_time' |
     'close_time' | 'currency' | 'vat_registered' | 'vat_rate' | 'prices_include_vat' | 'service_charge_rate' |
-    'booking_enabled' | 'qr_order_enabled' | 'booking_slot_minutes' | 'line_liff_id' | 'line_oa_basic_id' | 'timezone'>;
+    'booking_enabled' | 'qr_order_enabled' | 'booking_slot_minutes' | 'line_liff_id' | 'line_oa_basic_id' | 'timezone' |
+    'bg_from' | 'bg_to' | 'bg_angle' | 'cover_image_url' | 'welcome_text'>;
   categories: { id: string; name: string }[];
   items: Pick<MenuItem, 'id' | 'category_id' | 'name' | 'description' | 'price' | 'image_url' | 'available'>[];
   tables: { id: string; code: string; zone: string | null; seats: number; occupied: boolean }[];
