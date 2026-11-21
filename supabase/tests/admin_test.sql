@@ -104,3 +104,20 @@ do $$ begin
 end $$;
 reset role;
 \echo APPEARANCE_TESTS_PASSED
+
+-- 8. VAT นอก (prices exclude VAT): VAT is added on top of the menu price.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000ad');
+do $$
+declare s public.stores; m uuid; o uuid; r public.orders;
+begin
+  update public.stores set vat_registered = true, vat_rate = 7, prices_include_vat = false, service_charge_rate = 0,
+         tax_id = '1101700230708' where slug = 'cafe-b' returning * into s;
+  insert into public.menu_items (store_id, name, price) values (s.id, 'กาแฟ', 100) returning id into m;
+  o := public.pos_add_items(s.id, null, null, jsonb_build_array(jsonb_build_object('menu_item_id', m, 'qty', 1)));
+  r := public.checkout_order(o, 'cash', 107);
+  if r.subtotal <> 100 or r.vat <> 7 or r.total <> 107 or r.receipt_no !~ '^INV' then
+    raise exception 'VAT นอก totals wrong: %', row_to_json(r);
+  end if;
+end $$;
+reset role;
+\echo VAT_EXCLUSIVE_TEST_PASSED

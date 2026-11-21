@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { ImagePlus, X } from 'lucide-react';
 import { Field, ErrorBox, Spinner, Toggle } from './ui';
 import { isValidThaiTaxId } from '@/lib/taxid';
+import { computeTotals } from '@/lib/totals';
+import { fmt2 } from '@/lib/format';
 import { displayableImageUrl, parseDriveFolderId, uploadStoreFile } from '@/lib/upload';
 import type { Store } from '@/lib/types';
 
@@ -174,10 +176,39 @@ export default function StoreForm({ initial, onSubmit, submitLabel, savedStore }
         </Field>
         <div className="space-y-3 pt-6">
           <Toggle checked={v.vat_registered} onChange={(x) => set('vat_registered', x)} label="จดทะเบียนภาษีมูลค่าเพิ่ม (VAT)" />
-          {v.vat_registered && <Toggle checked={v.prices_include_vat} onChange={(x) => set('prices_include_vat', x)} label="ราคาเมนูรวม VAT แล้ว" />}
         </div>
         {v.vat_registered && (
-          <Field label="อัตรา VAT (%)"><input className="input" type="number" step="0.01" min={0} max={30} value={v.vat_rate} onChange={(e) => set('vat_rate', Number(e.target.value))} /></Field>
+          <div className="space-y-3 sm:col-span-2">
+            <span className="label">วิธีคิด VAT ของร้านนี้</span>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([true, false] as const).map((inc) => {
+                const ex = computeTotals({ ...v, prices_include_vat: inc }, 100);
+                const active = v.prices_include_vat === inc;
+                return (
+                  <button key={String(inc)} type="button" onClick={() => set('prices_include_vat', inc)}
+                    className={`rounded-xl border-2 p-4 text-left transition ${active ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                    <div className="flex items-center gap-2 font-bold">
+                      <span className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${active ? 'border-brand-600' : 'border-slate-300'}`}>
+                        {active && <span className="h-2.5 w-2.5 rounded-full bg-brand-600" />}
+                      </span>
+                      {inc ? 'VAT ใน (ราคารวม VAT แล้ว)' : 'VAT นอก (บวก VAT เพิ่ม)'}
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {inc ? 'ราคาบนเมนูคือราคาที่ลูกค้าจ่าย ระบบถอด VAT ออกมาแสดงในใบเสร็จ' : 'ราคาบนเมนูยังไม่รวม VAT ระบบบวก VAT เพิ่มตอนเช็คบิล'}
+                    </p>
+                    <div className="mt-2 rounded-lg bg-white/70 px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-100">
+                      ตัวอย่าง เมนูราคา ฿100{Number(v.service_charge_rate) > 0 ? ` + ค่าบริการ ${Number(v.service_charge_rate)}%` : ''}:
+                      {' '}VAT ฿{fmt2(ex.vat)} · <b>ลูกค้าจ่าย ฿{fmt2(ex.total)}</b>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <Field label="อัตรา VAT (%)" className="sm:w-48">
+              <input className="input" type="number" step="0.01" min={0} max={30} value={v.vat_rate} onChange={(e) => set('vat_rate', Number(e.target.value))} />
+            </Field>
+            <p className="text-xs text-slate-400">เปลี่ยนวิธีคิดแล้ว มีผลกับบิลถัดไป — บิลที่ชำระแล้วไม่เปลี่ยนตาม</p>
+          </div>
         )}
         <Field label="ค่าบริการ / Service charge (%)" hint="ใส่ 0 ถ้าไม่เก็บ">
           <input className="input" type="number" step="0.01" min={0} max={30} value={v.service_charge_rate} onChange={(e) => set('service_charge_rate', Number(e.target.value))} />
