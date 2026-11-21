@@ -9,7 +9,8 @@ type Mode = 'login' | 'signup' | 'forgot';
 
 export default function Login({ admin = false }: { admin?: boolean }) {
   const { notice } = useAuth();
-  const [mode, setMode] = useState<Mode>('login');
+  // Shareable sign-up link: <site>/#/signup opens the sign-up form directly.
+  const [mode, setMode] = useState<Mode>(() => (!admin && window.location.hash.startsWith('#/signup') ? 'signup' : 'login'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [profile, setProfile] = useState({ full_name: '', phone: '', business_name: '' });
