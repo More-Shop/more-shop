@@ -4,6 +4,7 @@ import { useAuth } from './auth';
 import { useAccount } from './account';
 import { applyBackground, applyTheme } from './theme';
 import type { Role, Store } from './types';
+import { isOn, type FeatureKey, type FeatureMap } from './features';
 
 interface Membership { role: Role; store: Store }
 interface StoreState {
@@ -16,6 +17,8 @@ interface StoreState {
   selectStore: (id: string | null) => void;
   reload: () => Promise<void>;
   can: (...roles: Role[]) => boolean;
+  /** Is this accounting/tax function switched on for the current store? */
+  feature: (key: FeatureKey) => boolean;
 }
 
 const KEY = 'moreshop.currentStore';
@@ -30,6 +33,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try { return localStorage.getItem(KEY); } catch { return null; }
   });
   const [loading, setLoading] = useState(true);
+  const [defaults, setDefaults] = useState<FeatureMap>({});
+  useEffect(() => {
+    if (!user) return;
+    supabase.rpc('platform_features').then(({ data }) => setDefaults((data as FeatureMap | null) ?? {}), () => undefined);
+  }, [user]);
 
   const reload = useCallback(async () => {
     if (!user) { setMemberships([]); setAdminStore(null); setLoading(false); return; }
@@ -74,7 +82,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     reload,
     can: (...roles) => Boolean(current && roles.includes(current.role)),
-  }), [memberships, current, viaAdmin, loading, reload]);
+    feature: (key) => isOn(key, defaults, current?.store.features as FeatureMap | undefined),
+  }), [memberships, current, viaAdmin, loading, reload, defaults]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

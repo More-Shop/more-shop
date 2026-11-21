@@ -42,6 +42,7 @@ export interface Store {
   bg_angle: number | null;
   cover_image_url: string | null;
   welcome_text: string | null;
+  features: Partial<Record<string, boolean>>;
 }
 
 export interface Category { id: string; store_id: string; name: string; sort: number; active: boolean }

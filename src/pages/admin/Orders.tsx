@@ -215,7 +215,7 @@ function Row({ l, r, strong }: { l: string; r: string; strong?: boolean }) {
 }
 
 function PayModal({ order, items, onClose, onDone }: { order: Order; items: OrderItem[]; onClose: () => void; onDone: () => Promise<void> }) {
-  const { store } = useCurrentStore();
+  const { store, feature } = useCurrentStore();
   const { user } = useAuth();
   const [method, setMethod] = useState('cash');
   const [discount, setDiscount] = useState('');
@@ -278,7 +278,7 @@ function PayModal({ order, items, onClose, onDone }: { order: Order; items: Orde
           <Row l="ยอดสุทธิ" r={`฿${fmt2(t.total)}`} strong />
           {method === 'cash' && <div className="mt-2 flex justify-between text-lg font-bold text-green-700"><span>เงินทอน</span><span>฿{fmt2(change)}</span></div>}
         </div>
-        {store.vat_registered && (
+        {store.vat_registered && feature('full_tax_invoice') && (
           <div className="space-y-3">
             <Toggle checked={taxInvoice} onChange={setTaxInvoice} label="ลูกค้าขอใบกำกับภาษีเต็มรูป" />
             {taxInvoice && (

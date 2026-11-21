@@ -22,7 +22,7 @@ function toForm(s: Store): StoreFormValues {
 }
 
 export default function Settings() {
-  const { store, can, reload } = useCurrentStore();
+  const { store, can, reload, adminView, feature } = useCurrentStore();
 
   async function testPrint() {
     const now = new Date().toISOString();
@@ -43,7 +43,7 @@ export default function Settings() {
     <div className="mx-auto max-w-4xl">
       <PageHeader title="ตั้งค่าร้าน" subtitle={`ลิงก์เมนูลูกค้า: ${publicLink(`s/${store.slug}`)}`}
         actions={<button className="btn-secondary" onClick={testPrint}><Printer className="h-4 w-4" /> ทดสอบพิมพ์ใบเสร็จ</button>} />
-      <StoreForm key={store.id} savedStore={store} initial={toForm(store)} submitLabel="บันทึกการตั้งค่า"
+      <StoreForm key={store.id} savedStore={store} initial={toForm(store)} lockTax={!adminView && !feature('tax_settings')} submitLabel="บันทึกการตั้งค่า"
         onSubmit={async (v) => {  // logo is uploaded immediately for an existing store
           must(await supabase.from('stores').update({
             ...v, tax_id: v.tax_id || null, legal_name: v.legal_name || null, address: v.address || null, phone: v.phone || null,

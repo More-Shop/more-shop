@@ -9,17 +9,18 @@ import { useAuth } from '@/lib/auth';
 import { useCurrentStore } from '@/lib/store';
 import { APP_NAME } from '@/lib/config';
 import type { Role } from '@/lib/types';
+import type { FeatureKey } from '@/lib/features';
 import { usePendingCount } from './usePendingCount';
 
-const NAV: { to: string; label: string; icon: typeof StoreIcon; roles?: Role[] }[] = [
+const NAV: { to: string; label: string; icon: typeof StoreIcon; roles?: Role[]; feature?: FeatureKey }[] = [
   { to: '/', label: 'ภาพรวม', icon: LayoutDashboard },
   { to: '/pos', label: 'สั่งอาหาร (POS)', icon: ShoppingCart },
   { to: '/orders', label: 'ออเดอร์ / เช็คบิล', icon: ClipboardList },
   { to: '/bookings', label: 'การจองโต๊ะ', icon: CalendarDays },
   { to: '/menu', label: 'เมนูและราคา', icon: UtensilsCrossed, roles: ['owner', 'manager'] },
   { to: '/tables', label: 'โต๊ะ & QR Code', icon: QrCode, roles: ['owner', 'manager'] },
-  { to: '/ledger', label: 'รายรับ-รายจ่าย', icon: Wallet, roles: ['owner', 'manager'] },
-  { to: '/reports', label: 'รายงานบัญชี/ภาษี', icon: FileBarChart, roles: ['owner', 'manager'] },
+  { to: '/ledger', label: 'รายรับ-รายจ่าย', icon: Wallet, roles: ['owner', 'manager'], feature: 'ledger' },
+  { to: '/reports', label: 'รายงานบัญชี/ภาษี', icon: FileBarChart, roles: ['owner', 'manager'], feature: 'reports' },
   { to: '/staff', label: 'พนักงาน', icon: Users, roles: ['owner'] },
   { to: '/settings', label: 'ตั้งค่าร้าน', icon: Settings, roles: ['owner', 'manager'] },
 ];
@@ -28,14 +29,14 @@ export const ROLE_LABEL: Record<Role, string> = { owner: 'เจ้าของ'
 
 export default function Layout() {
   const { user } = useAuth();
-  const { store, role, memberships, selectStore, adminView } = useCurrentStore();
+  const { store, role, memberships, selectStore, adminView, feature } = useCurrentStore();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const pending = usePendingCount(store.id);
 
   useEffect(() => { document.title = `${store.name} · ${APP_NAME}`; }, [store.name]);
 
-  const nav = NAV.filter((n) => !n.roles || n.roles.includes(role));
+  const nav = NAV.filter((n) => (!n.roles || n.roles.includes(role)) && (!n.feature || feature(n.feature)));
 
   const sidebar = (
     <div className="flex h-full flex-col">

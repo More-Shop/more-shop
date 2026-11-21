@@ -1,7 +1,7 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import {
   AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, ExternalLink, KeyRound, LayoutDashboard,
-  LogOut, MailCheck, Palette, Search, ShieldCheck, ShieldOff, Store as StoreIcon, UserPlus, Users, XCircle,
+  LogOut, MailCheck, Palette, ToggleLeft, Search, ShieldCheck, ShieldOff, Store as StoreIcon, UserPlus, Users, XCircle,
 } from 'lucide-react';
 import { supabase, must } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
@@ -12,6 +12,7 @@ import { EmptyState, ErrorBox, Field, Modal, PageLoading, Spinner, toast, useLoa
 import { ROLE_LABEL } from '@/components/Layout';
 
 const DesignTab = lazy(() => import('./DesignTab'));
+const FeaturesTab = lazy(() => import('./FeaturesTab'));
 
 /** Open a store's back office in the shop app (new tab), as the admin. */
 function openStore(storeId: string, path = '/') {
@@ -46,7 +47,7 @@ const STATUS: Record<Status, { label: string; cls: string }> = {
   suspended: { label: 'ระงับ', cls: 'bg-red-100 text-red-700' },
 };
 
-type Tab = 'overview' | 'users' | 'stores' | 'design' | 'problems';
+type Tab = 'overview' | 'users' | 'stores' | 'features' | 'design' | 'problems';
 
 export default function AdminConsole() {
   const { user } = useAuth();
@@ -57,6 +58,7 @@ export default function AdminConsole() {
     { k: 'overview', label: 'ภาพรวม', icon: LayoutDashboard },
     { k: 'users', label: 'สมาชิก', icon: Users, badge: ov?.users_pending },
     { k: 'stores', label: 'ร้านค้า', icon: StoreIcon },
+    { k: 'features', label: 'ฟีเจอร์บัญชี/ภาษี', icon: ToggleLeft },
     { k: 'design', label: 'ตกแต่งหน้าร้าน', icon: Palette },
     { k: 'problems', label: 'ปัญหาที่พบ', icon: AlertTriangle, badge: ov?.errors_open },
   ];
@@ -86,6 +88,7 @@ export default function AdminConsole() {
         {tab === 'overview' && <OverviewTab ov={ov} go={setTab} />}
         {tab === 'users' && <UsersTab onChanged={reloadOv} />}
         {tab === 'stores' && <StoresTab />}
+        {tab === 'features' && <Suspense fallback={<PageLoading />}><FeaturesTab /></Suspense>}
         {tab === 'design' && <Suspense fallback={<PageLoading />}><DesignTab /></Suspense>}
         {tab === 'problems' && <ProblemsTab onChanged={reloadOv} />}
       </main>

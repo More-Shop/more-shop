@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { StoreProvider, useStore } from '@/lib/store';
 import { AccountProvider, useAccount } from '@/lib/account';
+import type { FeatureKey } from '@/lib/features';
 import AccountWaiting from '@/pages/AccountWaiting';
 import { isConfigured } from '@/lib/config';
 import { PageLoading, Toaster } from '@/components/ui';
@@ -27,9 +28,9 @@ const PublicBooking = lazy(() => import('@/pages/public/PublicBooking'));
 const LineEntry = lazy(() => import('@/pages/public/LineEntry'));
 const BillStatus = lazy(() => import('@/pages/public/BillStatus'));
 
-function RequireRole({ roles, children }: { roles: ('owner' | 'manager' | 'staff')[]; children: ReactNode }) {
-  const { can } = useStore();
-  return can(...roles) ? <>{children}</> : <Navigate to="/" replace />;
+function RequireRole({ roles, feature: f, children }: { roles: ('owner' | 'manager' | 'staff')[]; feature?: FeatureKey; children: ReactNode }) {
+  const { can, feature } = useStore();
+  return can(...roles) && (!f || feature(f)) ? <>{children}</> : <Navigate to="/" replace />;
 }
 
 function StaffArea() {
@@ -58,8 +59,8 @@ function StaffArea() {
         <Route path="bookings" element={<Bookings />} />
         <Route path="menu" element={<RequireRole roles={[...mgr]}><MenuAdmin /></RequireRole>} />
         <Route path="tables" element={<RequireRole roles={[...mgr]}><Tables /></RequireRole>} />
-        <Route path="ledger" element={<RequireRole roles={[...mgr]}><Ledger /></RequireRole>} />
-        <Route path="reports" element={<RequireRole roles={[...mgr]}><Reports /></RequireRole>} />
+        <Route path="ledger" element={<RequireRole roles={[...mgr]} feature="ledger"><Ledger /></RequireRole>} />
+        <Route path="reports" element={<RequireRole roles={[...mgr]} feature="reports"><Reports /></RequireRole>} />
         <Route path="staff" element={<RequireRole roles={['owner']}><Staff /></RequireRole>} />
         <Route path="settings" element={<RequireRole roles={[...mgr]}><Settings /></RequireRole>} />
         <Route path="*" element={<Navigate to="/" replace />} />

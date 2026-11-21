@@ -45,22 +45,25 @@ export const emptyStoreForm: StoreFormValues = {
 
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
 
-function Section({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
+function Section({ title, desc, children, locked }: { title: string; desc?: string; children: ReactNode; locked?: string }) {
   return (
     <section className="card p-5">
       <h3 className="font-bold text-slate-900">{title}</h3>
       {desc && <p className="mb-4 text-sm text-slate-500">{desc}</p>}
-      <div className="mt-3 grid gap-4 sm:grid-cols-2">{children}</div>
+      {locked && <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">🔒 {locked}</p>}
+      <fieldset disabled={Boolean(locked)} className={`mt-3 grid gap-4 sm:grid-cols-2 ${locked ? 'opacity-60' : ''}`}>{children}</fieldset>
     </section>
   );
 }
 
-export default function StoreForm({ initial, onSubmit, submitLabel, savedStore }: {
+export default function StoreForm({ initial, onSubmit, submitLabel, savedStore, lockTax }: {
   initial: StoreFormValues; submitLabel: string;
   /** logoFile: a logo picked before the store exists; the caller uploads it once the store is created. */
   onSubmit: (v: StoreFormValues, extra: { logoFile: File | null }) => Promise<void>;
   /** The store as saved in the database (enables logo upload). */
   savedStore?: Pick<Store, 'id' | 'drive_folder_id' | 'drive_upload_url'>;
+  /** Tax / VAT fields are read-only (switched off by the platform admin). */
+  lockTax?: boolean;
 }) {
   const storeId = savedStore?.id;
   const [driveInput, setDriveInput] = useState(initial.drive_folder_id ? `https://drive.google.com/drive/folders/${initial.drive_folder_id}` : '');
@@ -164,7 +167,8 @@ export default function StoreForm({ initial, onSubmit, submitLabel, savedStore }
         </Field>
       </Section>
 
-      <Section title="ข้อมูลภาษี" desc="ใช้พิมพ์บนใบเสร็จ/ใบกำกับภาษี และหัวรายงานยื่นสรรพากร">
+      <Section title="ข้อมูลภาษี" desc="ใช้พิมพ์บนใบเสร็จ/ใบกำกับภาษี และหัวรายงานยื่นสรรพากร"
+        locked={lockTax ? 'ผู้ดูแลระบบล็อกข้อมูลภาษี/VAT ของร้านนี้ไว้ — ติดต่อผู้ดูแลหากต้องการแก้ไข' : undefined}>
         <Field label="ชื่อผู้ประกอบการ / นิติบุคคล" hint="เช่น บริษัท มอร์ ช็อป จำกัด หรือ ชื่อ-นามสกุลเจ้าของ">
           <input className="input" value={v.legal_name} onChange={(e) => set('legal_name', e.target.value)} />
         </Field>

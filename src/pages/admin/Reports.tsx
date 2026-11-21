@@ -5,9 +5,10 @@ import { useCurrentStore } from '@/lib/store';
 import { todayISO } from '@/lib/format';
 import { downloadCsv } from '@/lib/csv';
 import { esc, printHtml } from '@/lib/print';
+import { REPORT_FEATURE } from '@/lib/features';
 import { REPORTS, buildReport, fmtCell, reportToCsv, type Report, type ReportKey } from '@/lib/reports';
 import type { Account, LedgerEntry } from '@/lib/types';
-import { ErrorBox, Field, PageHeader, PageLoading, useLoad } from '@/components/ui';
+import { EmptyState, ErrorBox, Field, PageHeader, PageLoading, useLoad } from '@/components/ui';
 import { MonthPicker, monthRange } from './Ledger';
 
 function reportHtml(r: Report) {
@@ -26,12 +27,14 @@ function reportHtml(r: Report) {
 }
 
 export default function Reports() {
-  const { store } = useCurrentStore();
+  const { store, feature } = useCurrentStore();
   const [mode, setMode] = useState<'month' | 'year' | 'custom'>('month');
   const [ym, setYm] = useState(todayISO(store.timezone).slice(0, 7));
   const [year, setYear] = useState(new Date().getFullYear());
   const [custom, setCustom] = useState({ from: `${todayISO(store.timezone).slice(0, 7)}-01`, to: todayISO(store.timezone) });
-  const [key, setKey] = useState<ReportKey>(store.vat_registered ? 'sales_vat' : 'cashbook');
+  const available = REPORTS.filter((r) => (!r.vatOnly || store.vat_registered) && feature(REPORT_FEATURE[r.key]));
+  const [key, setKey] = useState<ReportKey>(() =>
+    available.find((r) => r.key === (store.vat_registered ? 'sales_vat' : 'cashbook'))?.key ?? available[0]?.key ?? 'cashbook');
 
   const { from, to } = mode === 'month' ? monthRange(ym) : mode === 'year' ? { from: `${year}-01-01`, to: `${year}-12-31` } : custom;
 
@@ -44,15 +47,17 @@ export default function Reports() {
   }, [store.id, from, to]);
 
   const report = useMemo(() => (data ? buildReport(key, store, data.entries, data.accounts, from, to) : null), [data, key, store, from, to]);
-  const available = REPORTS.filter((r) => !r.vatOnly || store.vat_registered);
   const fileName = `${store.slug}-${key}-${from}_${to}`;
+  if (available.length === 0) {
+    return <EmptyState title="ยังไม่ได้เปิดใช้รายงาน">ผู้ดูแลระบบปิดรายงานบัญชี/ภาษีของร้านนี้ไว้</EmptyState>;
+  }
 
   return (
     <div>
       <PageHeader title="รายงานบัญชีและภาษี" subtitle="พิมพ์เป็น PDF (A4) เพื่อยื่นสรรพากร หรือดาวน์โหลด CSV เปิดใน Excel ส่งสำนักงานบัญชี"
         actions={report && <>
-          <button className="btn-secondary" onClick={() => downloadCsv(fileName, reportToCsv(report))}><Download className="h-4 w-4" /> CSV / Excel</button>
-          <button className="btn-primary" onClick={() => printHtml(reportHtml(report), 'A4', fileName)}><Printer className="h-4 w-4" /> พิมพ์ / PDF</button>
+          {feature('export_csv') && <button className="btn-secondary" onClick={() => downloadCsv(fileName, reportToCsv(report))}><Download className="h-4 w-4" /> CSV / Excel</button>}
+          {feature('export_pdf') && <button className="btn-primary" onClick={() => printHtml(reportHtml(report), 'A4', fileName)}><Printer className="h-4 w-4" /> พิมพ์ / PDF</button>}
         </>} />
       <div className="mb-4 grid gap-3 lg:grid-cols-[18rem_1fr]">
         <div className="space-y-2">

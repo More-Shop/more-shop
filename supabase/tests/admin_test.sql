@@ -121,3 +121,24 @@ begin
 end $$;
 reset role;
 \echo VAT_EXCLUSIVE_TEST_PASSED
+
+-- 9. Feature switches: only admins change them; values are cleaned.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  begin update public.stores set features = '{"ledger": true}' where slug = 'more-shop'; raise exception 'owner changed features';
+  exception when raise_exception then if sqlerrm not like '%ผู้ดูแลระบบ%' then raise; end if; end;
+  begin perform public.admin_set_default_features('{"ledger": false}'); raise exception 'owner set defaults';
+  exception when raise_exception then if sqlerrm not like '%ผู้ดูแลระบบ%' then raise; end if; end;
+  update public.stores set receipt_footer = 'ยังแก้ข้อมูลอื่นได้' where slug = 'more-shop';   -- other columns still editable
+  if public.platform_features() <> '{}'::jsonb then raise exception 'default features'; end if;
+end $$;
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000ad');
+do $$ begin
+  perform public.admin_set_default_features('{"report_journal": false, "junk": "x", "BAD KEY": true}');
+  if public.platform_features() <> '{"report_journal": false}'::jsonb then raise exception 'clean defaults: %', public.platform_features(); end if;
+  perform public.admin_set_store_features((select id from public.stores where slug = 'more-shop'), '{"ledger": false, "export_csv": true}');
+  if (select features from public.stores where slug = 'more-shop') <> '{"ledger": false, "export_csv": true}'::jsonb then raise exception 'store features'; end if;
+end $$;
+reset role;
+\echo FEATURE_TESTS_PASSED

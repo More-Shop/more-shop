@@ -29,7 +29,7 @@ export function MonthPicker({ value, onChange }: { value: string; onChange: (v: 
 }
 
 export default function Ledger() {
-  const { store } = useCurrentStore();
+  const { store, feature } = useCurrentStore();
   const [ym, setYm] = useState(todayISO(store.timezone).slice(0, 7));
   const [type, setType] = useState<'all' | EntryType>('all');
   const [data, loading, error, reload] = useLoad(async () => {
@@ -60,9 +60,11 @@ export default function Ledger() {
     <div>
       <PageHeader title="รายรับ-รายจ่าย" subtitle="ยอดขายจากการเช็คบิลถูกบันทึกเป็นรายรับอัตโนมัติ — บันทึกรายจ่ายพร้อมแนบรูปใบเสร็จได้ที่นี่"
         actions={<>
-          <button className="btn-secondary" onClick={() => setChart(true)}><ListTree className="h-4 w-4" /> ผังบัญชี</button>
-          <button className="btn-secondary" onClick={() => setEdit({ type: 'income', entry_date: todayISO(store.timezone), account_code: '4900' })}><Plus className="h-4 w-4" /> รายรับ</button>
-          <button className="btn-primary" onClick={() => setEdit({ type: 'expense', entry_date: todayISO(store.timezone), account_code: '5100' })}><Plus className="h-4 w-4" /> รายจ่าย</button>
+          {feature('chart_of_accounts') && <button className="btn-secondary" onClick={() => setChart(true)}><ListTree className="h-4 w-4" /> ผังบัญชี</button>}
+          {feature('ledger_manual') && <>
+            <button className="btn-secondary" onClick={() => setEdit({ type: 'income', entry_date: todayISO(store.timezone), account_code: '4900' })}><Plus className="h-4 w-4" /> รายรับ</button>
+            <button className="btn-primary" onClick={() => setEdit({ type: 'expense', entry_date: todayISO(store.timezone), account_code: '5100' })}><Plus className="h-4 w-4" /> รายจ่าย</button>
+          </>}
         </>} />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <MonthPicker value={ym} onChange={setYm} />
@@ -93,7 +95,7 @@ export default function Ledger() {
                   <td className="text-right text-xs">{Number(e.vat_amount) ? fmt2(e.vat_amount) : ''}</td>
                   <td className="whitespace-nowrap text-right">
                     {e.attachment_url && <a href={e.attachment_url} target="_blank" rel="noreferrer" className="btn-ghost px-1.5" aria-label="ไฟล์แนบ"><Paperclip className="h-4 w-4" /></a>}
-                    {!e.order_id && <button className="btn-ghost px-1.5" onClick={() => setEdit(e)} aria-label="แก้ไข"><Pencil className="h-4 w-4" /></button>}
+                    {!e.order_id && feature('ledger_manual') && <button className="btn-ghost px-1.5" onClick={() => setEdit(e)} aria-label="แก้ไข"><Pencil className="h-4 w-4" /></button>}
                   </td>
                 </tr>
               ))}
@@ -112,7 +114,7 @@ function Stat({ label, value, cls }: { label: string; value: number; cls: string
 }
 
 function EntryModal({ draft, accounts, onClose, onSaved }: { draft: Partial<LedgerEntry>; accounts: Account[]; onClose: () => void; onSaved: () => Promise<void> }) {
-  const { store } = useCurrentStore();
+  const { store, feature } = useCurrentStore();
   const [d, setD] = useState<Partial<LedgerEntry>>({ payment_method: 'cash', amount: 0, vat_amount: 0, ...draft });
   const [hasVat, setHasVat] = useState(Number(draft.vat_amount) > 0);
   const [busy, setBusy] = useState(false);
@@ -187,13 +189,13 @@ function EntryModal({ draft, accounts, onClose, onSaved }: { draft: Partial<Ledg
               {Object.entries(PAYMENT_METHODS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </Field>
-          <Field label="แนบรูปใบเสร็จ">
+          {feature('ledger_attachments') && <Field label="แนบรูปใบเสร็จ">
             <label className="btn-secondary w-full cursor-pointer">
               {uploading ? <Spinner /> : <Paperclip className="h-4 w-4" />} {d.attachment_url ? 'เปลี่ยนไฟล์' : 'เลือกไฟล์/ถ่ายรูป'}
               <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
             </label>
             {d.attachment_url && <a className="mt-1 block truncate text-xs text-brand-700 underline" href={d.attachment_url} target="_blank" rel="noreferrer">ดูไฟล์แนบ</a>}
-          </Field>
+          </Field>}
         </div>
       </div>
     </Modal>
