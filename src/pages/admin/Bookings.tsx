@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, MessageCircle, Phone, Plus, Users } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, MessageCircle, Phone, Plus, QrCode, Users } from 'lucide-react';
+import QrShareModal from '@/components/QrShareModal';
+import { publicLink } from '@/lib/config';
+import { printHtml } from '@/lib/print';
+import { linkQrHtml } from '@/print/templates';
 import { supabase, must, callFunction } from '@/lib/supabase';
 import { useCurrentStore } from '@/lib/store';
 import { thaiDate, todayISO } from '@/lib/format';
@@ -33,6 +37,8 @@ export default function Bookings() {
   }, [store.id, date]);
   useStoreRealtime(store.id, () => { void reload(); }, 60000);
   const [adding, setAdding] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  const bookUrl = publicLink(`s/${store.slug}/book`);
   const [busy, setBusy] = useState<string | null>(null);
 
   async function setStatus(b: Booking, status: BookingStatus) {
@@ -53,7 +59,13 @@ export default function Bookings() {
   return (
     <div>
       <PageHeader title="การจองโต๊ะ" subtitle="รับจองจาก LINE OA / ลิงก์จอง / โทรศัพท์"
-        actions={<button className="btn-primary" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> เพิ่มการจอง</button>} />
+        actions={<>
+          <button className="btn-secondary" onClick={() => setShowQr(true)}><QrCode className="h-4 w-4" /> QR / ลิงก์จองโต๊ะ</button>
+          <button className="btn-primary" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> เพิ่มการจอง</button>
+        </>} />
+      <QrShareModal open={showQr} onClose={() => setShowQr(false)} title="QR / ลิงก์จองโต๊ะ" heading="สแกนเพื่อจองโต๊ะ"
+        caption="เลือกวัน เวลา และหมายเลขโต๊ะได้เอง" url={bookUrl} storeName={store.name}
+        onPrint={async () => printHtml(await linkQrHtml(store, 'สแกนเพื่อจองโต๊ะ', bookUrl), store.paper_width, 'QR-จองโต๊ะ')} />
       <div className="mb-4 flex items-center gap-2">
         <button className="btn-secondary px-3" onClick={() => setDate(shift(date, -1))} aria-label="วันก่อน"><ChevronLeft className="h-4 w-4" /></button>
         <input type="date" className="input w-auto" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />

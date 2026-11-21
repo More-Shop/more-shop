@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Copy, Link2, Pencil, Plus, Printer, RefreshCw, Trash2 } from 'lucide-react';
+import { Copy, Link2, Pencil, Plus, Printer, QrCode, RefreshCw, Trash2 } from 'lucide-react';
+import QrShareModal from '@/components/QrShareModal';
 import { supabase, must } from '@/lib/supabase';
 import { useCurrentStore } from '@/lib/store';
 import { publicLink } from '@/lib/config';
@@ -17,6 +18,7 @@ export default function Tables() {
   const [edit, setEdit] = useState<Partial<DiningTable> | null>(null);
   const [bulk, setBulk] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [qr, setQr] = useState<{ title: string; heading: string; caption?: string; url: string; print: () => Promise<void> } | null>(null);
 
   if (loading && !tables) return <PageLoading />;
   const list = tables ?? [];
@@ -29,12 +31,20 @@ export default function Tables() {
     } finally { setPrinting(false); }
   }
 
-  async function printLink(kind: 'book' | 'line') {
+
+  function showLink(kind: 'book' | 'line') {
     const url = kind === 'book' ? publicLink(`s/${store.slug}/book`)
       : store.line_oa_basic_id ? `https://line.me/R/ti/p/${encodeURIComponent(store.line_oa_basic_id)}` : null;
     if (!url) { toast.err('ยังไม่ได้ตั้งค่า LINE OA ID ในหน้าตั้งค่า'); return; }
-    await printHtml(await linkQrHtml(store, kind === 'book' ? 'สแกนเพื่อจองโต๊ะ' : 'เพิ่มเพื่อน LINE รับสิทธิ์ จอง & สั่งอาหาร', url,
-      kind === 'line' ? store.line_oa_basic_id ?? '' : ''), store.paper_width, `QR-${kind}`);
+    const heading = kind === 'book' ? 'สแกนเพื่อจองโต๊ะ' : 'เพิ่มเพื่อน LINE รับสิทธิ์ จอง & สั่งอาหาร';
+    const caption = kind === 'line' ? store.line_oa_basic_id ?? '' : 'เลือกวัน เวลา และหมายเลขโต๊ะได้เอง';
+    setQr({ title: kind === 'book' ? 'QR / ลิงก์จองโต๊ะ' : 'QR เพิ่มเพื่อน LINE', heading, caption, url,
+      print: async () => printHtml(await linkQrHtml(store, heading, url, kind === 'line' ? caption : ''), store.paper_width, `QR-${kind}`) });
+  }
+  function showTable(t: DiningTable) {
+    const url = tableUrl(store.slug, t);
+    setQr({ title: `QR โต๊ะ ${t.code}`, heading: `โต๊ะ ${t.code} · สแกนเพื่อสั่งอาหาร`, caption: t.zone ?? undefined, url,
+      print: () => printQr([t]) });
   }
 
   const copy = async (text: string) => { await navigator.clipboard.writeText(text).catch(() => undefined); toast.ok('คัดลอกลิงก์แล้ว'); };
@@ -43,8 +53,8 @@ export default function Tables() {
     <div>
       <PageHeader title="โต๊ะ & QR Code" subtitle="พิมพ์ QR ไปวางบนโต๊ะ ลูกค้าสแกนแล้วสั่งอาหารได้เลย (ออเดอร์จะเข้าหน้า “ออเดอร์” ให้พนักงานยืนยัน)"
         actions={<>
-          <button className="btn-secondary" onClick={() => printLink('book')}><Printer className="h-4 w-4" /> QR จองโต๊ะ</button>
-          <button className="btn-secondary" onClick={() => printLink('line')}><Printer className="h-4 w-4" /> QR เพิ่มเพื่อน LINE</button>
+          <button className="btn-secondary" onClick={() => showLink('book')}><QrCode className="h-4 w-4" /> QR จองโต๊ะ</button>
+          <button className="btn-secondary" onClick={() => showLink('line')}><QrCode className="h-4 w-4" /> QR เพิ่มเพื่อน LINE</button>
           <button className="btn-secondary" disabled={!list.length || printing} onClick={() => printQr(list.filter((t) => t.active))}>
             {printing ? <Spinner /> : <Printer className="h-4 w-4" />} พิมพ์ QR ทุกโต๊ะ
           </button>
@@ -66,6 +76,7 @@ export default function Tables() {
               </div>
               <div className="mt-3 flex gap-2">
                 <button className="btn-secondary flex-1 px-2" onClick={() => printQr([t])}><Printer className="h-4 w-4" /> พิมพ์ QR</button>
+                <button className="btn-secondary px-3" onClick={() => showTable(t)} aria-label="แสดง QR"><QrCode className="h-4 w-4" /></button>
                 <button className="btn-secondary px-3" onClick={() => copy(tableUrl(store.slug, t))} aria-label="คัดลอกลิงก์"><Copy className="h-4 w-4" /></button>
                 <a className="btn-secondary px-3" href={tableUrl(store.slug, t)} target="_blank" rel="noreferrer" aria-label="เปิดลิงก์"><Link2 className="h-4 w-4" /></a>
               </div>
@@ -73,6 +84,8 @@ export default function Tables() {
           ))}
         </div>
       )}
+      {qr && <QrShareModal open onClose={() => setQr(null)} title={qr.title} heading={qr.heading} caption={qr.caption}
+        url={qr.url} storeName={store.name} onPrint={qr.print} />}
       {edit && <TableModal draft={edit} onClose={() => setEdit(null)} onSaved={async () => { setEdit(null); await reload(); }} />}
       {bulk && <BulkModal existing={list} onClose={() => setBulk(false)} onSaved={async () => { setBulk(false); await reload(); }} />}
     </div>
