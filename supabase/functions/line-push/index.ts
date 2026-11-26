@@ -2,7 +2,8 @@
 // customer in LINE. The caller must be signed in and belong to the store
 // (checked by reading the booking through RLS with the caller's session).
 import { adminClient, corsHeaders, json, loadStoreLine, thaiDate, userClient } from '../_shared/common.ts';
-import { push, text } from '../_shared/line.ts';
+import { push } from '../_shared/line.ts';
+import { STATUS, storeCard } from '../_shared/flex.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -21,12 +22,18 @@ Deno.serve(async (req) => {
     if (!store || !token) return json({ error: 'ร้านยังไม่ได้ตั้งค่า LINE access token' }, 400);
 
     const table = (Array.isArray(b.table) ? b.table[0] : b.table) as { code: string } | null;
-    const when = `${thaiDate(b.booking_date)} เวลา ${String(b.booking_time).slice(0, 5)} น. · ${b.party_size} คน${table ? ` · โต๊ะ ${table.code}` : ''}`;
-    const msg = b.status === 'confirmed' ? `✅ ${store.name} ยืนยันการจองของคุณแล้ว\n${when}\nแล้วพบกันค่ะ`
-      : b.status === 'cancelled' ? `❌ ${store.name} ขออภัย การจองของคุณถูกยกเลิก\n${when}\nสอบถามเพิ่มเติมได้ทางแชทนี้`
-      : null;
-    if (!msg) return json({ sent: false, reason: 'status not notifiable' });
-    await push(token, b.line_user_id, [text(msg)]);
+    const ok = b.status === 'confirmed', no = b.status === 'cancelled';
+    if (!ok && !no) return json({ sent: false, reason: 'status not notifiable' });
+    const when = `${thaiDate(b.booking_date)} เวลา ${String(b.booking_time).slice(0, 5)} น.`;
+    await push(token, b.line_user_id, [storeCard(store, {
+      icon: ok ? '✅' : '❌', title: ok ? 'ยืนยันการจองแล้ว' : 'การจองถูกยกเลิก', status: ok ? STATUS.ok : STATUS.no,
+      rows: [
+        { label: 'วันที่', value: thaiDate(b.booking_date), bold: true }, { label: 'เวลา', value: `${String(b.booking_time).slice(0, 5)} น.`, bold: true },
+        { label: 'จำนวน', value: `${b.party_size} คน` }, { label: 'โต๊ะ', value: table ? table.code : '' },
+      ],
+      note: ok ? 'แล้วพบกันค่ะ 🙏' : 'ขออภัยค่ะ สอบถามเพิ่มเติมได้ทางแชทนี้',
+      altText: ok ? `✅ ${store.name} ยืนยันการจองแล้ว · ${when}` : `❌ ${store.name} ยกเลิกการจอง · ${when}`,
+    })]);
     return json({ sent: true });
   } catch (e) {
     console.error(e);

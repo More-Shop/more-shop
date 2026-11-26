@@ -26,12 +26,13 @@ export function userClient(authHeader: string): SupabaseClient {
 
 export interface StoreLine {
   id: string; slug: string; name: string; timezone: string;
+  theme_color: string | null; logo_url: string | null;
   line_liff_id: string | null; line_login_channel_id: string | null;
   secret: { line_channel_secret: string | null; line_channel_access_token: string | null; line_staff_target_id: string | null } | null;
 }
 
 export async function loadStoreLine(db: SupabaseClient, by: { slug?: string; id?: string }): Promise<StoreLine | null> {
-  let q = db.from('stores').select('id, slug, name, timezone, line_liff_id, line_login_channel_id, secret:store_secrets(line_channel_secret, line_channel_access_token, line_staff_target_id)');
+  let q = db.from('stores').select('id, slug, name, timezone, theme_color, logo_url, line_liff_id, line_login_channel_id, secret:store_secrets(line_channel_secret, line_channel_access_token, line_staff_target_id)');
   q = by.id ? q.eq('id', by.id) : q.eq('slug', (by.slug ?? '').toLowerCase());
   const { data, error } = await q.maybeSingle();
   if (error) throw new Error(error.message);

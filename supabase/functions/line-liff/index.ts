@@ -2,7 +2,8 @@
 // then places the order / booking with the service role so the LINE user id
 // is stored, and answers the customer (and optionally the staff group) in LINE.
 import { adminClient, appLink, corsHeaders, json, loadStoreLine, thaiDate } from '../_shared/common.ts';
-import { push, text, verifyIdToken } from '../_shared/line.ts';
+import { push, verifyIdToken, type LineMessage } from '../_shared/line.ts';
+import { STATUS, storeCard } from '../_shared/flex.ts';
 
 interface Body {
   action: 'order' | 'booking';
@@ -29,9 +30,9 @@ Deno.serve(async (req) => {
     const user = await verifyIdToken(body.id_token, store.line_login_channel_id);
     const token = store.secret?.line_channel_access_token;
     const staff = store.secret?.line_staff_target_id;
-    const notify = async (to: string | null | undefined, msg: string) => {
+    const notify = async (to: string | null | undefined, msg: LineMessage) => {
       if (!token || !to) return;
-      await push(token, to, [text(msg)]).catch((e) => console.error('push failed', e));
+      await push(token, to, [msg]).catch((e) => console.error('push failed', e));
     };
 
     if (body.action === 'order') {
@@ -42,8 +43,19 @@ Deno.serve(async (req) => {
       if (error) return json({ error: error.message }, 400);
       const r = data as { order_id: string; table_code: string; items: number; order_no: string };
       const link = appLink(`bill/${r.order_id}`);
-      await notify(user.sub, `🧾 ${store.name}\nได้รับออเดอร์โต๊ะ ${r.table_code} แล้ว ${r.items} รายการ\nพนักงานกำลังยืนยันออเดอร์${link ? `\nดูรายการ: ${link}` : ''}`);
-      await notify(staff, `🔔 ออเดอร์ใหม่ (LINE) โต๊ะ ${r.table_code} · ${r.items} รายการ · บิล #${r.order_no}`);
+      await notify(user.sub, storeCard(store, {
+        icon: '🧾', title: 'ได้รับออเดอร์แล้ว', status: STATUS.wait,
+        rows: [{ label: 'โต๊ะ', value: String(r.table_code), bold: true }, { label: 'จำนวน', value: `${r.items} รายการ` }, { label: 'เลขบิล', value: `#${r.order_no}` }],
+        note: 'พนักงานกำลังยืนยันออเดอร์ของคุณ',
+        button: link ? { label: 'ดูรายการที่สั่ง', uri: link } : null,
+        altText: `🧾 ${store.name}: ได้รับออเดอร์โต๊ะ ${r.table_code} แล้ว ${r.items} รายการ`,
+      }));
+      await notify(staff, storeCard(store, {
+        icon: '🔔', title: 'ออเดอร์ใหม่', status: STATUS.new,
+        rows: [{ label: 'โต๊ะ', value: String(r.table_code), bold: true }, { label: 'จำนวน', value: `${r.items} รายการ` }, { label: 'เลขบิล', value: `#${r.order_no}` }, { label: 'ลูกค้า', value: body.customer_name ?? user.name ?? '' }],
+        button: link ? { label: 'เปิดบิล', uri: link } : null,
+        altText: `🔔 ออเดอร์ใหม่ (LINE) โต๊ะ ${r.table_code} · ${r.items} รายการ · บิล #${r.order_no}`,
+      }));
       return json(r);
     }
 
@@ -56,8 +68,21 @@ Deno.serve(async (req) => {
       if (error) return json({ error: error.message }, 400);
       const r = data as { table_code: string | null; date: string; time: string; party_size: number };
       const when = `${thaiDate(r.date)} เวลา ${String(r.time).slice(0, 5)} น.`;
-      await notify(user.sub, `📅 ${store.name}\nได้รับคำขอจองแล้ว\n${when}\n${r.party_size} คน${r.table_code ? ` · โต๊ะ ${r.table_code}` : ''}\nร้านจะยืนยันกลับทาง LINE นี้`);
-      await notify(staff, `🔔 จองโต๊ะใหม่ (LINE)\n${b.name} ${b.phone}\n${when} · ${r.party_size} คน${r.table_code ? ` · โต๊ะ ${r.table_code}` : ''}`);
+      const rows = [
+        { label: 'วันที่', value: thaiDate(r.date), bold: true }, { label: 'เวลา', value: `${String(r.time).slice(0, 5)} น.`, bold: true },
+        { label: 'จำนวน', value: `${r.party_size} คน` }, { label: 'โต๊ะ', value: r.table_code ? String(r.table_code) : '' },
+      ];
+      await notify(user.sub, storeCard(store, {
+        icon: '📅', title: 'ได้รับคำขอจองแล้ว', status: STATUS.wait, rows,
+        note: 'ร้านจะยืนยันการจองกลับทาง LINE นี้',
+        altText: `📅 ${store.name}: ได้รับคำขอจอง ${when} · ${r.party_size} คน`,
+      }));
+      await notify(staff, storeCard(store, {
+        icon: '🔔', title: 'จองโต๊ะใหม่', status: STATUS.new,
+        rows: [{ label: 'ชื่อ', value: b.name, bold: true }, { label: 'โทร', value: b.phone }, ...rows, { label: 'หมายเหตุ', value: b.note }],
+        note: 'ยืนยัน / ยกเลิกได้ในหน้าจองโต๊ะของร้าน',
+        altText: `🔔 จองโต๊ะใหม่ (LINE) ${b.name} · ${when} · ${r.party_size} คน`,
+      }));
       return json(r);
     }
     return json({ error: 'unknown action' }, 400);
