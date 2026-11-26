@@ -52,3 +52,30 @@ export function usePendingCount(storeId: string) {
   useStoreRealtime(storeId, load);
   return count;
 }
+
+export interface PendingBooking { id: string; booking_date: string; booking_time: string; customer_name: string; party_size: number; source: string; table_id: string | null }
+
+/**
+ * Bookings still waiting for the shop to confirm, from today onwards (any date).
+ * The sidebar badge and the bookings page use it, so a booking made for another
+ * day is never missed. Chimes and calls `onNew` when the count grows.
+ */
+export function usePendingBookings(storeId: string, today: string, onNew?: (n: number) => void) {
+  const [list, setList] = useState<PendingBooking[]>([]);
+  const last = useRef<number | null>(null);
+  const cb = useRef(onNew);
+  cb.current = onNew;
+  const load = async () => {
+    const { data } = await supabase.from('bookings')
+      .select('id, booking_date, booking_time, customer_name, party_size, source, table_id')
+      .eq('store_id', storeId).eq('status', 'pending').gte('booking_date', today)
+      .order('booking_date').order('booking_time').limit(50);
+    const rows = (data ?? []) as PendingBooking[];
+    if (last.current !== null && rows.length > last.current) { chime(); cb.current?.(rows.length - last.current); }
+    last.current = rows.length;
+    setList(rows);
+  };
+  useEffect(() => { last.current = null; void load(); }, [storeId, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  useStoreRealtime(storeId, load);
+  return { list, count: list.length, reload: load };
+}

@@ -10,7 +10,9 @@ import { useCurrentStore } from '@/lib/store';
 import { APP_NAME } from '@/lib/config';
 import type { Role } from '@/lib/types';
 import type { FeatureKey } from '@/lib/features';
-import { usePendingCount } from './usePendingCount';
+import { usePendingBookings, usePendingCount } from './usePendingCount';
+import { toast } from './ui';
+import { todayISO } from '@/lib/format';
 
 const NAV: { to: string; label: string; icon: typeof StoreIcon; roles?: Role[]; feature?: FeatureKey }[] = [
   { to: '/', label: 'ภาพรวม', icon: LayoutDashboard },
@@ -33,6 +35,9 @@ export default function Layout() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const pending = usePendingCount(store.id);
+  const showBookings = NAV.some((n) => n.to === '/bookings' && (!n.roles || n.roles.includes(role)) && (!n.feature || feature(n.feature)));
+  const { count: bookingsPending } = usePendingBookings(store.id, todayISO(store.timezone),
+    (n) => showBookings && toast.ok(`📅 มีการจองโต๊ะใหม่ ${n} รายการ — รอยืนยัน`));
 
   useEffect(() => { document.title = `${store.name} · ${APP_NAME}`; }, [store.name]);
 
@@ -60,6 +65,8 @@ export default function Layout() {
             <span className="flex-1">{n.label}</span>
             {n.to === '/orders' && pending > 0 && (
               <span className="badge animate-pulse bg-red-500 text-white">{pending}</span>)}
+            {n.to === '/bookings' && bookingsPending > 0 && (
+              <span className="badge animate-pulse bg-amber-500 text-white" title="การจองที่รอยืนยัน">{bookingsPending}</span>)}
           </NavLink>
         ))}
       </nav>
@@ -89,7 +96,10 @@ export default function Layout() {
         <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
           <button className="btn-ghost -ml-2 p-2" onClick={() => setOpen(true)} aria-label="เมนู"><MenuIcon className="h-6 w-6" /></button>
           <span className="truncate font-bold">{store.name}</span>
-          {pending > 0 && <NavLink to="/orders" className="badge ml-auto bg-red-500 text-white">ออเดอร์ใหม่ {pending}</NavLink>}
+          <span className="ml-auto flex gap-1.5">
+            {pending > 0 && <NavLink to="/orders" className="badge bg-red-500 text-white">ออเดอร์ใหม่ {pending}</NavLink>}
+            {showBookings && bookingsPending > 0 && <NavLink to="/bookings" className="badge bg-amber-500 text-white">จองรอยืนยัน {bookingsPending}</NavLink>}
+          </span>
         </header>
         {adminView && (
           <div className="flex flex-wrap items-center gap-2 bg-slate-900 px-4 py-2 text-sm text-white">

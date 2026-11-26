@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, MessageCircle, Phone, Plus, QrCode, Users } from 'lucide-react';
+import { BellRing, CalendarDays, Check, ChevronLeft, ChevronRight, MessageCircle, Phone, Plus, QrCode, Users } from 'lucide-react';
 import QrShareModal from '@/components/QrShareModal';
 import { publicLink } from '@/lib/config';
 import { printHtml } from '@/lib/print';
@@ -9,7 +9,7 @@ import { useCurrentStore } from '@/lib/store';
 import { thaiDate, todayISO } from '@/lib/format';
 import type { Booking, BookingStatus, DiningTable } from '@/lib/types';
 import { EmptyState, Field, Modal, PageHeader, PageLoading, Spinner, toast, useLoad } from '@/components/ui';
-import { useStoreRealtime } from '@/components/usePendingCount';
+import { usePendingBookings, useStoreRealtime } from '@/components/usePendingCount';
 
 export const BOOKING_STATUS: Record<BookingStatus, { label: string; cls: string }> = {
   pending: { label: 'รอยืนยัน', cls: 'bg-amber-100 text-amber-800' },
@@ -36,6 +36,9 @@ export default function Bookings() {
     return { bookings: must(b) as Booking[], tables: must(t) as DiningTable[] };
   }, [store.id, date]);
   useStoreRealtime(store.id, () => { void reload(); }, 60000);
+  const today = todayISO(store.timezone);
+  const pend = usePendingBookings(store.id, today);
+  const others = pend.list.filter((p) => p.booking_date !== date);
   const [adding, setAdding] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const bookUrl = publicLink(`s/${store.slug}/book`);
@@ -50,7 +53,7 @@ export default function Bookings() {
           () => toast.ok('แจ้งลูกค้าทาง LINE แล้ว'),
           (e) => toast.err(`อัปเดตแล้ว แต่ส่ง LINE ไม่สำเร็จ: ${(e as Error).message}`));
       }
-      await reload();
+      await Promise.all([reload(), pend.reload()]);
     } catch (e) { toast.err((e as Error).message); } finally { setBusy(null); }
   }
 
@@ -73,6 +76,24 @@ export default function Bookings() {
         <button className="btn-ghost" onClick={() => setDate(todayISO(store.timezone))}>วันนี้</button>
         <span className="ml-2 hidden text-sm text-slate-500 sm:inline">{thaiDate(date, 'long')}</span>
       </div>
+      {others.length > 0 && (
+        <div className="card mb-4 border-amber-300 bg-amber-50 p-4" role="status">
+          <div className="mb-2 flex items-center gap-2 font-bold text-amber-900">
+            <BellRing className="h-5 w-5" /> การจองรอยืนยันในวันอื่น {others.length} รายการ
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {others.map((p) => (
+              <button key={p.id} className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-left text-sm hover:border-amber-400"
+                onClick={() => setDate(p.booking_date)} title="ไปที่วันนั้น">
+                <span className="font-bold text-amber-800">{thaiDate(p.booking_date)} · {p.booking_time.slice(0, 5)} น.</span>
+                <span className="text-slate-700">{p.customer_name} · {p.party_size} คน</span>
+                {p.source === 'line' && <MessageCircle className="h-4 w-4 text-green-600" />}
+                <ChevronRight className="h-4 w-4 text-slate-400" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {loading && !data ? <PageLoading /> : !data?.bookings.length ? (
         <EmptyState icon={<CalendarDays className="h-10 w-10" />} title="ไม่มีการจองในวันนี้" />
       ) : (
